@@ -19,6 +19,8 @@ Built from `BRIEF.md`. The plan, with the changes each Council review led to, is
 | Watch the shop | Quantities add up across meals, per unit, grouped by aisle in your own store order. Tick things off. |
 | Finish the list | Every-week items from your Repeating weekly shopping list are merged in, and cover the same item for a meal rather than doubling it. Add anything else from your groceries. Seasonings wait under "Check the cupboard". |
 | Change your mind | Every change can be undone (the Undo button, the toast, or Ctrl+Z). Dealing again or clearing the table empties the trolley; undo brings it back. |
+| When the shop is out of something | Mark it "Not in the shop today" and the dinners that needed it offer a swap: the replacement that adds the fewest new things to the list. |
+| Mark what you cooked | A tick on past days. What you actually cook is what The usual learns from. |
 | Shop from a phone | The list fills the screen, ticks are thumb-sized, the preferred product shows under each item, and things bought whole are rounded up (1 can, not ¾). |
 | Send a week | "Put this week in the link" gives a link that offers the week to whoever opens it. It is never applied without a yes. |
 | Save | Writes a meal plan and a checklist shopping list to Iris, in the same shape as your existing ones. |
@@ -44,8 +46,8 @@ scripts/build_data.py   raw Iris pulls -> data/deck.json
 scripts/build.py        src/ + data/deck.json -> dist/
 src/engine.js       shop totals, sharing, chains, loose ends, the dealer, Iris markdown. No DOM.
 src/ui.js           the page
-tests/engine.test.js    28 tests, including agreement with Iris's own aggregation
-tests/e2e/run.mjs       38 checks in a real browser: drag, deal, undo, tick, keyboard, phone, save, sync
+tests/engine.test.js    30 tests, including a round trip through the real Iris
+tests/e2e/run.mjs       39 checks in a real browser: drag, deal, undo, tick, swap, keyboard, phone, save, sync
 ```
 
 ```bash
@@ -76,6 +78,8 @@ Then run the data build and the page build. Update `data/source/` if the saved p
 
 - **Agreement with Iris.** On every line Iris's "Shopping list" aggregation adds up, this page gets the same number (tested on the 6 to 12 June plan). It also keeps what Iris drops: lines with no quantity, and amounts typed as text such as `1/2`.
 - **Sharing between devices.** In Claude, the week lives in the artifact's database, one document per week. The plan is written whole; each tick is merged on its own so two people shopping do not undo each other. Whoever you share the artifact with as a contributor can change the week.
-- **Save has not been run against the real Iris.** Iris diagrams cannot be deleted through the connector, so the first real write is yours to make. The write is tested against a stand-in, and its shape is copied from your existing diagrams. If a plan of the same name is already in the week's package, Save stops and asks before writing a second copy.
+- **Save, checked against the real Iris (18 November 2026).** The same calls the Save button makes were run through the Iris connector into the Sandbox collection (set "ArchiMate Test", package "Dinner Deck test"): a package, a meal plan and a shopping list. Iris accepted all three, and its own "Shopping list" aggregation then added up the plan this app wrote and agreed with the engine on all 24 lines they share (`tests/fixtures-iris-roundtrip.json`). Those test diagrams are still there; the connector cannot delete them. If a plan of the same name is already in the week's package, Save stops and asks before writing a second copy.
+- **Sync, checked against the real database.** A week in the page's own document shape was written to the published artifact's database, two ticks were merged in separately by two "shoppers" and both stood, a contributor could write and a viewer could only read. The test document was then removed.
+- **Not checkable from where this was built:** the click itself inside Claude. The page's use of the Claude runtime (`claude.use("db")`, `claude.use("mcp")`) is tested against a stand-in written from the runtime's type definitions, not inside the Claude app.
 - **Diner counts** scale the shop here, but are written to Iris only as a note; the token form Iris wants for a per-meal diner count was not confirmed.
 - **Committed data.** `data/deck.json` holds recipe text, grocery names and preferred products. Personal notes on the every-week list were removed. Check you are happy with that before making the repository public.

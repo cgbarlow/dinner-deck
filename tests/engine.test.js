@@ -254,3 +254,17 @@ test('not in the shop: the swap avoids the missing thing and adds as little as i
   assert.ok(res.extra <= 4, `adds ${res.extra}`);
   assert.equal(res.week.days[1].r, id('Roast chicken'));
 });
+
+test('round trip: Iris adds up a plan this app wrote, and agrees with it line for line', () => {
+  const fx = JSON.parse(readFileSync(new URL('./fixtures-iris-roundtrip.json', import.meta.url)));
+  const w = weekOf(fx.week);
+  const shop = E.shop(w);
+  const out = E.toIris(w);
+  for (const name of fx.week) assert.ok(out.planMarkdown.includes(`{{diagram:${id(name)}:name}}`));
+  let agreed = 0;
+  for (const [name, qty, unit] of fx.rows) {
+    if (fx.leftOutOnPurpose[name]) { assert.equal(lineFor(shop, name)?.sums[unit], undefined, `${name} is kept out of the totals`); continue; }
+    assert.equal(lineFor(shop, name).sums[unit], qty, `${name}: ${unit}`); agreed++;
+  }
+  assert.equal(agreed, 24);
+});

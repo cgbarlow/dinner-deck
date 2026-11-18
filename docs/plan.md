@@ -75,4 +75,8 @@ The finished build was tested hands-on by an independent reviewer, then put to t
 5. **It learns.** Past weeks planned in the app count toward habits.
 6. **Save checks first.** If the week is already in Iris, it says so before writing a second copy.
 
-Not done, and why: recording which dinners were actually cooked (needs a habit the household does not have yet); merging near-duplicate groceries (a change to make in Iris, listed under "What the deck knows").
+7. **In the shop.** "Not in the shop today" on any item offers to swap the dinners that needed it for the one that adds least to the list.
+8. **Cooked.** Past days can be marked cooked; the usual deal learns from what was cooked.
+9. **Verified for real.** Save was run through the Iris connector into the Sandbox, and Iris's aggregation agreed with the engine on the plan the app wrote. Sync was run against the artifact's live database.
+
+Not done, and why: merging near-duplicate groceries (a change to make in Iris, listed under "What the deck knows").
