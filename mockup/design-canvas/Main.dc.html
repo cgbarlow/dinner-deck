@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Iris explorations scoring matrix</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+body{margin:0}
+.sc{width:44px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px}
+.s1{background:#EEF1F5;color:#4A5361}
+.s2{background:#DCE6F5;color:#2B3A52}
+.s3{background:#B9CFF0;color:#16294A}
+.s4{background:#7FA6E3;color:#0B2147}
+.s5{background:#1F5FBF;color:#FFFFFF}
+.rtop{background:#EAF1FC}
+.rrest{background:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; padding: 48px 56px; background: #F6F7F9; color: #14181F; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; gap: 22px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 32px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #1F5FBF">Council scoring · 14 Iris collections</div>
+      <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.1">Which data set makes the best exploration?</h1>
+    </div>
+    <div style="font-size: 14px; color: #4A5361; max-width: 360px; line-height: 1.45">Each collection scored on its single best concept. 1 to 5 per criterion, 35 maximum. Top five are mocked up below.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px">
+    <sc-for list="{{criteria}}" as="k" hint-placeholder-count="7">
+      <div style="background: #FFFFFF; border: 1px solid #DDE2EA; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px">
+        <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px">{{k.name}}</div>
+        <div style="font-size: 12px; line-height: 1.35; color: #4A5361">{{k.test}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 4px">
+    <div style="display: grid; grid-template-columns: 40px 250px 1fr repeat(7, 52px) 64px; align-items: center; gap: 8px; padding: 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #4A5361">
+      <div>#</div><div>Collection</div><div>Best concept</div>
+      <div>Int</div><div>Nov</div><div>Sur</div><div>Del</div><div>Eng</div><div>Act</div><div>Dyn</div>
+      <div style="text-align: right">Total</div>
+    </div>
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="14">
+      <div class="{{r.cls}}" style="display: grid; grid-template-columns: 40px 250px 1fr repeat(7, 52px) 64px; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 8px; border: 1px solid #DDE2EA">
+        <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; color: #4A5361">{{r.rank}}</div>
+        <div style="font-weight: 600; font-size: 14px">{{r.name}}</div>
+        <div style="font-size: 13px; color: #2B3340; line-height: 1.3"><span style="font-weight: 600">{{r.concept}}</span> · {{r.idea}}</div>
+        <sc-for list="{{r.scores}}" as="c" hint-placeholder-count="7">
+          <div class="sc s{{c}}">{{c}}</div>
+        </sc-for>
+        <div style="text-align: right; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px">{{r.total}}</div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+renderVals() {
+  const criteria = [
+    { name: 'Interesting', test: 'Is the data deep and typed enough to reward a second look?' },
+    { name: 'Novel', test: 'Does it show something the Iris canvas does not already?' },
+    { name: 'Surprising', test: 'Can the data reveal a thing its author did not know?' },
+    { name: 'Delightful', test: 'Is there a personal or playful pull?' },
+    { name: 'Engaging', test: 'Is there a story with stakes to follow?' },
+    { name: 'Interactive', test: 'Are there real things to do, not just look at?' },
+    { name: 'Dynamic', test: 'Does it move, change over time, or respond live?' }
+  ];
+  const raw = [
+    ['Barlow Family', 'The River', 'eight generations as merging streams, plus an open case file', [5,4,5,5,5,4,3]],
+    ['Day to day living', 'Dinner Deck', 'deal meals onto a week, the shop writes itself by aisle', [4,3,3,5,5,5,5]],
+    ['NZQA AI Opportunity Portfolio', 'Unlock Board', 'flip foundations on and off, watch initiatives light or lock', [5,4,4,3,4,5,4]],
+    ['unsorry: Distributed Proof Swarm', 'Swarm Theatre', 'follow one sorry from queue to kernel to leaderboard', [4,5,3,4,4,4,5]],
+    ['Outcomes Theory (DoView)', 'Strategy Observatory', '22 government strategy maps in one ring, searched by outcome', [5,5,5,3,4,4,2]],
+    ['Quest-based Experience', 'Play the Model', 'learn the quest concept by doing a quest about it', [2,4,3,5,4,4,3]],
+    ['SparxEA examples', 'Follow a Flight', 'one flight traced through the AIXM and FIXM classes', [4,4,3,3,3,3,3]],
+    ['chrisbarlow.nz', 'Ahead of the Date', 'projects on a timeline against when the world caught up', [3,3,4,4,4,3,2]],
+    ['AI in New Zealand Budget 2026', 'Follow the Money', 'Vote to agency to outcome, every figure cited', [3,3,4,2,3,3,3]],
+    ['Iris system', 'Iris, Explained by Iris', 'click any part of the product to see its architecture', [3,4,2,3,3,3,2]],
+    ['NZ AI Interest Group', 'Name Knockout', 'the eight candidate names in a head-to-head bracket', [1,3,2,4,3,4,3]],
+    ['GEA-NZ Framework', 'Capability Sunburst', '505 capabilities, zone to area to sub-capability', [4,2,2,2,3,4,2]],
+    ['Contoso Test Organisation', 'Token Run', 'play a token through the BPMN process', [2,2,1,2,2,4,4]],
+    ['Sandbox', 'Notation Rosetta', 'the same idea in each notation, side by side', [2,1,1,1,1,2,2]]
+  ];
+  const rows = raw.map((r, i) => ({
+    rank: i + 1, name: r[0], concept: r[1], idea: r[2], scores: r[3],
+    total: r[3].reduce((a, b) => a + b, 0),
+    cls: i < 5 ? 'rtop' : 'rrest'
+  }));
+  return { criteria, rows };
+}
+}
+</script>
+</body>
+</html>
