@@ -104,3 +104,5 @@ The chrisbarlow.nz collection is described as being pulled at build time through
 - 18 quantities cannot be right for their unit (for example 250 cup cauliflower, 4 g carrots, 2.5 g pork shoulder).
 - The "Repeating weekly shopping" list (Shopping lists, package "Standard lists") holds 33 standing items.
 - The container this was built in cannot reach Iris over HTTP; the connector is the only route.
+- Iris's aggregation buckets by the grocery's default unit and ignores a unit override on the line: Gołąbki's `Quantity=1, Unit=whole` cabbage is added as 1 cup. Seen on the plan saved from the live page on 18 November 2026.
+- A per-meal diner count is `{{diagram:<id>:attr:attributes/Diners/type=8}}`. Iris counts a meal once per diagram token on the line, so a scaled meal must carry that token alone.
