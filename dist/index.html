@@ -247,13 +247,20 @@ body.dragging .deck { outline: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
+.linkish { border: 0; background: transparent; padding: 0; color: var(--green); text-decoration: underline; text-underline-offset: 2px; font: inherit; }
+.rank { margin: 6px 0; padding: 0; list-style: none; counter-reset: r; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 20px; }
+.rank li { counter-increment: r; display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.rank li span:first-child::before { content: counter(r) ". "; color: var(--muted); font-variant-numeric: tabular-nums; }
+.go:disabled, .ghost:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 520px) { .rank { grid-template-columns: 1fr; } }
+
 </style>
 <div class="app" id="app" data-view="week">
   <aside class="panel deck" aria-label="Recipe deck">
     <div class="deck-head">
       <div>
         <h1>Dinner Deck</h1>
-        <div class="sub" id="deck-sub"></div>
+        <div class="sub"><span id="deck-sub"></span> · <button type="button" class="linkish" id="facts">What the deck knows</button></div>
       </div>
       <label class="field" for="search">Find a meal
         <input id="search" type="search" placeholder="salmon, one-pot, cabbage…" autocomplete="off">
@@ -978,7 +985,7 @@ function renderWeek() {
         onclick: () => revealInShop(l.g),
       }));
       const tools = [];
-      if (r.b && !slot.second && !INS.batches.find((b) => b.day === i && b.second !== -1)) tools.push(h('button', { class: 'tool', type: 'button', title: 'Add its second night', 'aria-label': `Add a second night of ${r.n}`, text: '+2', style: 'font-weight:700;font-size:12px', onclick: () => { const w = E.addSecondNight(S.week, i); w ? commit(w, 'One cook, two dinners. The second night adds nothing to the shop.') : toast('No free day left for a second night.'); } }));
+      if (r.b && !slot.second && !INS.batches.find((b) => b.day === i && b.second !== -1)) tools.push(h('button', { class: 'tool', type: 'button', title: 'Add its second night', 'aria-label': `Add a second night of ${r.n}`, text: '×2', style: 'font-weight:700;font-size:13px', onclick: () => { const w = E.addSecondNight(S.week, i); w ? commit(w, 'One cook, two dinners. The second night adds nothing to the shop.') : toast('No free day left for a second night.'); } }));
       tools.push(h('button', { class: 'tool', type: 'button', svg: LOCK, 'aria-pressed': String(!!slot.lock), title: slot.lock ? 'Kept when you deal again' : 'Keep this when dealing again', 'aria-label': `Keep ${r.n} on ${DAY_NAMES[i]} when dealing again`, onclick: () => { const w = { ...S.week, days: S.week.days.map((s, k) => (k === i ? { ...s, lock: !s.lock } : s)) }; commit(w); } }));
       tools.push(h('button', { class: 'tool', type: 'button', text: '×', style: 'font-size:20px', title: 'Back to the deck', 'aria-label': `Take ${r.n} off ${DAY_NAMES[i]}`, onclick: () => commit(E.move(S.week, { day: i }, { deck: true }), '') }));
       inner = h('div', { class: 'slot', 'data-drop-day': i }, h('div', { class: 'dcard' + (slot.second ? ' second' : ''), 'data-drag': 'day', 'data-day': i, 'data-id': slot.r },
@@ -1086,7 +1093,7 @@ function renderShop() {
   $('list').replaceChildren(...sections);
 }
 function renderFoot() {
-  $('sync').textContent = `${S.cloud ? 'This week is shared with everyone who can open this page.' : 'This week is saved on this device.'} Recipes read from Iris on ${new Date(DECK.read + 'T00:00:00Z').toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}.`;
+  $('sync').textContent = `${S.cloud ? 'This week is shared with everyone who can open this page.' : 'This week is saved on this device.'} Recipes read from Iris on ${readDate()}.`;
 }
 function renderTabs() {
   const buy = toBuy(), left = buy.filter((l) => !S.ticks.has(l.g)).length;
@@ -1184,6 +1191,33 @@ function setDiners(day, delta, id) {
   touched(); renderAll();
   const out = $('diners'); if (out) out.textContent = String(d);
 }
+
+// ---------------------------------------------------------------- what the deck knows
+function openFacts() {
+  const uses = {};
+  for (const id of E.recipeIds) for (const g of new Set(R[id].i.map((i) => i.g))) if (!G[g].s) uses[g] = (uses[g] || 0) + 1;
+  const top = Object.entries(uses).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const never = E.dinners.filter((id) => !E.planned[id]);
+  const odd = E.recipeIds.flatMap((id) => R[id].i.filter((i) => i.odd).map((i) => ({ id, text: `${formatQty(i.q, E.unitOf(i))} of ${G[i.g].n.toLowerCase()}` })));
+  const bare = E.recipeIds.filter((id) => R[id].i.every((i) => i.q == null));
+  const noMethod = E.recipeIds.filter((id) => !R[id].m).length;
+  const link = (id, text) => h('button', { type: 'button', class: 'linkish', text: text || R[id].n, onclick: () => openRecipe(id) });
+  const list = (ids) => ids.flatMap((id, k) => [k ? ', ' : '', link(id)]);
+  openSheet([
+    h('div', { class: 'sheet-head' }, h('h2', { text: 'What the deck knows', id: 'sheet-title' }), h('button', { class: 'close', type: 'button', text: '×', 'aria-label': 'Close', onclick: closeSheet })),
+    h('div', { class: 'sheet-body' },
+      h('p', { text: `Read from Iris on ${readDate()}: ${E.recipeIds.length} recipes, ${E.dinners.length} of them dinners, drawing on ${Object.keys(uses).length} of your ${Object.keys(G).length} groceries.` }),
+      h('div', null, h('h3', { text: 'What your cooking runs on' }), h('ol', { class: 'rank' }, top.map(([g, n]) => h('li', null, h('span', { text: G[g].n }), h('span', { class: 'fine', text: `${n} recipes` })))),
+        h('p', { class: 'fine', text: 'Seasonings left out. A week built around the top of this list is a short shop, which is what Thrifty deals.' })),
+      h('div', null, h('h3', { text: 'Habits in your saved weeks' }), h('p', null, E.habits.filter(Boolean).length ? E.habits.filter(Boolean).flatMap((x, k) => [k ? '; ' : '', link(x.r), ` on ${DAY_NAMES[x.day]} in ${x.n} of ${x.of}`]) : 'No repeats yet.', '. Three saved weeks is a small sample. The usual deal leans on it anyway.')),
+      h('div', null, h('h3', { text: `Never on a saved plan (${never.length} of ${E.dinners.length} dinners)` }), h('p', null, list(never), '. Wildcard deals from these.')),
+      h('div', null, h('h3', { text: 'Worth tidying in Iris' }),
+        h('p', null, `${odd.length} quantities cannot be right for their unit, usually a count typed against grams. They are left out of shop totals: `, odd.flatMap((o, k) => [k ? '; ' : '', link(o.id), ` (${o.text})`]), '.'),
+        h('p', null, `${bare.length} recipes list ingredients with no amounts at all: `, list(bare), '. The shop shows those lines without a quantity.'),
+        h('p', { class: 'fine', text: `${noMethod} recipes have no method written down. Iris's own shopping-list aggregation skips lines without a quantity and amounts typed as text like 1/2; this page keeps them.` }))),
+  ]);
+}
+const readDate = () => new Date(DECK.read + 'T00:00:00Z').toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 // ---------------------------------------------------------------- copy, share, save to Iris
 async function copy(text, okMessage) {
@@ -1357,6 +1391,7 @@ $('filters').addEventListener('click', (e) => { const b = e.target.closest('.chi
 $('pick-cancel').addEventListener('click', () => { S.pickDay = null; renderDeck(); renderWeek(); if (isPhone()) setView('week'); });
 $('styles').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.style = b.dataset.s; persist(); renderWeek(); } });
 $('deal').addEventListener('click', dealNow);
+$('facts').addEventListener('click', openFacts);
 $('clear').addEventListener('click', () => commit({ ...emptyWeek(S.start), adds: S.week.adds, everyWeek: S.week.everyWeek }, 'Table cleared.'));
 function shiftWeek(by) { const d = dayDate(S.start, by * 7); loadWeek(d.toISOString().slice(0, 10)); shownCount = null; subscribe(); renderAll(); }
 $('prev').addEventListener('click', () => shiftWeek(-1));

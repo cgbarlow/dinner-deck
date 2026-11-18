@@ -91,3 +91,16 @@ Two ways to build on this:
 - `create_diagram` to save a new meal plan or shopping list. Needs sign-in.
 
 The chrisbarlow.nz collection is described as being pulled at build time through an anonymous JSON export. Whether that export is open for this collection was not checked.
+
+## Corrections found during the build (18 November 2026)
+
+- There are **three** saved meal plans, not two (23 May, 30 May, 6 June). Weeks run Saturday to Friday. Each day is one `{{diagram:<id>:name}}` line.
+- `list_elements(set_id=…)` returns only the first 50 groceries. `export_set` returns all 216 but with **no aisle** (`package_name` is null). The aisle comes from `list_package_elements` per package.
+- 214 of the 216 elements sit in an aisle. The other two are a template stub and an unfiled "Pork rump steak".
+- No recipe references another recipe. Sausages with coleslaw and potatoes repeats Coleslaw's five lines.
+- Leftovers are in the data: groceries "Leftover pork" and "Leftover tomato sauce", both used by the lasagne. Nothing says which recipe makes the tomato sauce.
+- 37 groceries carry `Seasoning = true`. 119 carry a preferred product.
+- Ten ingredient lines write the amount as text (`1/2`) before the unit token rather than in the Quantity token. Iris's aggregation skips these; so it also skips the 86 lines with no quantity.
+- 18 quantities cannot be right for their unit (for example 250 cup cauliflower, 4 g carrots, 2.5 g pork shoulder).
+- The "Repeating weekly shopping" list (Shopping lists, package "Standard lists") holds 33 standing items.
+- The container this was built in cannot reach Iris over HTTP; the connector is the only route.

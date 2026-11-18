@@ -242,3 +242,10 @@ body.dragging .deck { outline: 0; }
   dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 18px 18px 0 0; max-height: 90vh; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+.linkish { border: 0; background: transparent; padding: 0; color: var(--green); text-decoration: underline; text-underline-offset: 2px; font: inherit; }
+.rank { margin: 6px 0; padding: 0; list-style: none; counter-reset: r; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 20px; }
+.rank li { counter-increment: r; display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.rank li span:first-child::before { content: counter(r) ". "; color: var(--muted); font-variant-numeric: tabular-nums; }
+.go:disabled, .ghost:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 520px) { .rank { grid-template-columns: 1fr; } }
