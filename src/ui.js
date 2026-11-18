@@ -286,6 +286,7 @@ function outNotes() {
     return { g: l.g, name: l.name, meals: days.map((day) => ({ day, r: S.week.days[day].r })) };
   }).filter((o) => o.meals.length);
 }
+const needingNow = (g) => outNotes().some((o) => o.g === g);
 function swapDay(day) {
   const old = R[S.week.days[day].r].n;
   const res = E.swapOut(S.week, day, S.out);
@@ -355,17 +356,17 @@ function itemRow(l) {
   for (const p of l.parts) from.push(`${p.label}${p.q != null ? ' ' + formatQty(p.q, p.unit) : ''}${p.opt ? ' (optional)' : ''}`);
   if (l.weekly) from.push('every week' + (l.weekly.q != null ? ' ' + formatQty(l.weekly.q, l.weekly.unit) : '') + (l.weekly.note ? `, ${l.weekly.note}` : '') + (l.parts.length ? ', which covers the meals' : ''));
   if (l.added) from.push(`added by hand ×${l.added.q}`);
-  const detail = h('div', { class: 'detail', hidden: !open },
+  const detail = h('div', { class: 'detail', hidden: !open && !(gone && needing.length) },
     l.product && h('span', { class: 'product', text: l.product }),
     h('span', { class: 'from', text: [...from, ...l.notes, ...l.odd.map((o) => `Iris: ${o}, which looks wrong`)].join(' · ') }),
     h('span', { class: 'acts' },
-      !done && h('button', { type: 'button', class: 'linkish', 'data-fk': 'out:' + l.g, text: gone ? 'It is there after all' : 'Not in the shop today', onclick: () => { gone ? S.out.delete(l.g) : S.out.add(l.g); S.rev = Date.now(); persist(); queueMark('out', l.g, !gone); renderAll(); } }),
       needing.map((m) => h('button', { type: 'button', class: 'linkish', text: `Swap ${DAY_NAMES[m.day]}'s ${R[m.r].n.toLowerCase()}`, onclick: () => swapDay(m.day) }))));
   return h('li', { class: 'item' + (done ? ' done' : '') + (gone ? ' gone' : '') + (open ? ' open' : ''), 'data-g': l.g },
     h('div', { class: 'main' },
       h('input', { type: 'checkbox', id, 'data-fk': 'tick:' + l.g, checked: done, 'aria-label': `${l.name}${l.qty ? ', ' + l.qty : ''}`, onchange: (e) => { e.target.checked ? S.ticks.set(l.g, l.qty) : S.ticks.delete(l.g); S.rev = Date.now(); persist(); queueTick(l.g, e.target.checked ? l.qty : false); refreshShop(); } }),
       h('button', { class: 'more', type: 'button', 'data-fk': 'more:' + l.g, 'aria-expanded': String(open), onclick: () => { open ? S.open.delete(l.g) : S.open.add(l.g); refreshShop(); } }, h('span', { class: 'nm', text: l.name }), badges),
       h('span', { class: 'qty', text: l.qty }),
+      !done && h('button', { type: 'button', class: 'nothere', 'data-fk': 'out:' + l.g, text: gone ? 'found it' : 'not there', title: gone ? 'It is in the shop after all' : 'Not in the shop today', 'aria-label': gone ? `${l.name} is in the shop after all` : `${l.name} is not in the shop today`, onclick: () => { gone ? S.out.delete(l.g) : S.out.add(l.g); S.rev = Date.now(); persist(); queueMark('out', l.g, !gone); renderAll(); if (!gone) toast(needingNow(l.g) ? `No ${l.name.toLowerCase()}. A swap is offered under it.` : `${l.name} marked as not in the shop.`); } }),
       l.added && h('button', { class: 'x', type: 'button', text: '×', 'aria-label': `Remove ${l.name} that you added`, onclick: () => commit({ ...S.week, adds: S.week.adds.filter((a) => a.g !== l.g) }) })),
     detail);
 }

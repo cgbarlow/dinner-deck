@@ -47,7 +47,7 @@ scripts/build.py        src/ + data/deck.json -> dist/
 src/engine.js       shop totals, sharing, chains, loose ends, the dealer, Iris markdown. No DOM.
 src/ui.js           the page
 tests/engine.test.js    32 tests, including a round trip through the real Iris
-tests/e2e/run.mjs       40 checks in a real browser: drag, deal, undo, tick, swap, keyboard, phone, save, sync
+tests/e2e/run.mjs       41 checks in a real browser: drag, deal, undo, tick, swap, keyboard, phone, save, sync
 ```
 
 ```bash

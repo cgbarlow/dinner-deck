@@ -268,3 +268,8 @@ body.dragging .deck { outline: 0; }
 .detail .acts .linkish { font-size: 13px; padding: 4px 0; }
 
 .alldone { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--green) 14%, var(--panel)); font-weight: 700; }
+
+.nothere { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; font-size: 11.5px; padding: 3px 8px; white-space: nowrap; opacity: 0; transition: opacity .12s; }
+.item:hover .nothere, .nothere:focus-visible, .item.gone .nothere { opacity: 1; }
+.item.gone .nothere { color: var(--rust); border-color: var(--rust-line); }
+@media (max-width: 900px), (hover: none) { .nothere { opacity: 1; min-height: 32px; padding: 0 10px; } }
