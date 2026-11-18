@@ -176,6 +176,20 @@ const card = (name) => `#cards .pcard:has(.nm:text-is("${name}"))`;
     assert.equal((await page.textContent('.item:has(.nm:text-is("Chilli beans")) .qty')).trim(), '2 cans');
     assert.match(await page.textContent('#notes'), /Already on your every-week list/);
   });
+  await check('not in the shop: mark it, get offered a swap, take it, undo it', async () => {
+    await page.click('#clear');
+    await page.click(card('Egg Pie')); await page.click('#sheet .puton button:text-is("Mon")');
+    const row = '.item:has(.nm:text-is("Cauliflower"))';
+    await page.click(`${row} .more`); await page.click(`${row} .acts button:text-is("Not in the shop today")`);
+    assert.match(await page.textContent('#notes'), /No cauliflower in the shop\. Monday's egg pie needs it/);
+    await page.click('#notes button:text-is("Swap Monday\'s dinner")');
+    const now = (await names(page))[2];
+    assert.ok(now && now !== 'Egg Pie');
+    assert.match(await page.textContent('#why'), /egg pie swapped for/);
+    assert.equal(await page.$(row), null);
+    await page.click('#toast button');
+    assert.equal((await names(page))[2], 'Egg Pie');
+  });
   await check('aisles appear in store-walk order', async () => {
     await page.check('#every-week');
     const order = await page.$$eval('.aisle-h h3', (e) => e.map((x) => x.textContent));

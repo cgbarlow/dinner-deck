@@ -247,8 +247,9 @@ body.dragging .deck { outline: 0; }
   .item input[type="checkbox"] { width: 26px; height: 26px; }
   .item .nm { font-size: 16px; }
   .detail { display: block !important; padding-left: 36px; }
-  .detail .from { display: none; }
+  .detail .from, .detail .acts { display: none; }
   .item.open .detail .from { display: block; }
+  .item.open .detail .acts, .item.gone .detail .acts { display: flex; }
   .weeknav h2 { font-size: 18px; }
   .toast { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 18px 18px 0 0; max-height: 90vh; }
@@ -261,3 +262,7 @@ body.dragging .deck { outline: 0; }
 .rank li span:first-child::before { content: counter(r) ". "; color: var(--muted); font-variant-numeric: tabular-nums; }
 .go:disabled, .ghost:disabled { opacity: .45; cursor: not-allowed; }
 @media (max-width: 520px) { .rank { grid-template-columns: 1fr; } }
+
+.item.gone .nm { color: var(--muted); text-decoration: line-through dotted; }
+.detail .acts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; }
+.detail .acts .linkish { font-size: 13px; padding: 4px 0; }

@@ -46,14 +46,15 @@ const disk = {
 const saved = disk.read();
 saved.weeks = saved.weeks || {};
 const THIS_WEEK = weekOf(new Date()), NEXT_WEEK = weekStart(new Date());
+const TODAY = (() => { const d = new Date(); return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0, 10); })();
 // Weeks already planned here teach the dealer, alongside the plans saved in Iris.
-const learned = Object.entries(saved.weeks).filter(([start, rec]) => start < THIS_WEEK && rec.rev > 0 && rec.week.days.some((d) => d.r)).map(([, rec]) => ({ days: rec.week.days.map((d) => (d.second ? null : d.r)) }));
+const learned = Object.entries(saved.weeks).filter(([start, rec]) => start < THIS_WEEK && rec.rev > 0 && rec.week.days.some((d) => d.r)).map(([, rec]) => { const marked = rec.week.days.some((d) => d.c); return { days: rec.week.days.map((d) => (d.second || (marked && !d.c) ? null : d.r)) }; });
 const E = makeEngine(DECK, learned);
 const { G, R } = E;
 const hasDinner = (rec) => !!rec && rec.week.days.some((d) => d.r);
 const S = {
   start: hasDinner(saved.weeks[THIS_WEEK]) && !hasDinner(saved.weeks[NEXT_WEEK]) ? THIS_WEEK : NEXT_WEEK,
-  week: null, ticks: new Map(), rev: 0,
+  week: null, ticks: new Map(), out: new Set(), rev: 0,
   style: saved.style || 'usual', view: 'week', filter: 'all', q: '', pickDay: null, why: '', open: new Set(),
   cloud: false, cloudHas: false, cloudError: false, offer: null, undo: [],
 };
@@ -65,18 +66,18 @@ function loadWeek(start) {
   const rec = saved.weeks[start];
   if (rec) {
     S.week = { ...emptyWeek(start), ...rec.week, start };
-    S.ticks = new Map(Object.entries(rec.ticks || {})); S.rev = rec.rev || 0; S.why = '';
+    S.ticks = new Map(Object.entries(rec.ticks || {})); S.out = new Set(rec.out || []); S.rev = rec.rev || 0; S.why = '';
   } else if (firstVisit) {
     const dealt = E.deal(emptyWeek(start), 'usual', mulberry32(seedFor(start)));
-    S.week = dealt.week; S.ticks = new Map(); S.rev = 0;
+    S.week = dealt.week; S.ticks = new Map(); S.out = new Set(); S.rev = 0;
     S.why = 'Dealt to get you started. ' + dealt.why;
   } else {
-    S.week = emptyWeek(start); S.ticks = new Map(); S.rev = 0;
+    S.week = emptyWeek(start); S.ticks = new Map(); S.out = new Set(); S.rev = 0;
     S.why = 'Nothing is planned for this week yet.';
   }
 }
 function persist() {
-  saved.weeks[S.start] = { week: S.week, ticks: Object.fromEntries(S.ticks), rev: S.rev };
+  saved.weeks[S.start] = { week: S.week, ticks: Object.fromEntries(S.ticks), out: [...S.out], rev: S.rev };
   const keep = Object.keys(saved.weeks).sort().slice(-12);
   for (const k of Object.keys(saved.weeks)) if (!keep.includes(k)) delete saved.weeks[k];
   saved.style = S.style;
@@ -84,10 +85,10 @@ function persist() {
 }
 // Every change to the week goes through here, so every change can be undone.
 function commit(week, why, opts = {}) {
-  S.undo.push({ week: S.week, ticks: new Map(S.ticks), why: S.why });
+  S.undo.push({ week: S.week, ticks: new Map(S.ticks), out: new Set(S.out), why: S.why });
   if (S.undo.length > 30) S.undo.shift();
   S.week = week;
-  if (opts.clearTicks) S.ticks.clear();
+  if (opts.clearTicks) { S.ticks.clear(); S.out.clear(); }
   if (why !== undefined) S.why = why;
   touched(!!opts.clearTicks);
   renderAll();
@@ -95,7 +96,7 @@ function commit(week, why, opts = {}) {
 function undo() {
   const prev = S.undo.pop();
   if (!prev) return;
-  S.week = prev.week; S.ticks = prev.ticks; S.why = prev.why;
+  S.week = prev.week; S.ticks = prev.ticks; S.out = prev.out; S.why = prev.why;
   touched(true); renderAll(); toast('Undone.');
 }
 function touched(replace) { S.rev = Date.now(); persist(); queueWeek(replace); }
@@ -110,6 +111,7 @@ async function initCloud() {
   if (db) subscribe();
 }
 const tickDoc = () => Object.fromEntries(S.ticks);
+const outDoc = () => Object.fromEntries([...S.out].map((g) => [g, true]));
 function subscribe() {
   if (unsub) unsub();
   if (!db) return;
@@ -128,6 +130,7 @@ function subscribe() {
       if (wasFirst && S.rev > 0 && (d.rev || 0) < S.rev) { queueWeek(true); renderFoot(); return; } // this device has newer work to send
       S.week = { ...emptyWeek(start), days: d.days, extras: d.extras || [], adds: d.adds || [], everyWeek: d.everyWeek !== false, start };
       S.ticks = new Map(Object.entries(d.ticks || {}).filter(([, v]) => typeof v === 'string'));
+      S.out = new Set(Object.entries(d.out || {}).filter(([, v]) => v === true).map(([g]) => g));
       S.rev = d.rev || 1; S.why = ''; S.undo = [];
       persist(); renderAll();
     }, () => { S.cloud = false; renderFoot(); });
@@ -141,7 +144,7 @@ function queueWeek(replace) {
   if (!db || S.rev === 0) return;
   const plan = { days: S.week.days, extras: S.week.extras, adds: S.week.adds, everyWeek: S.week.everyWeek, rev: S.rev, tab: TAB };
   const whole = replace || !S.cloudHas || (pending && pending.whole);
-  pending = { start: S.start, whole, body: whole ? { ...plan, ticks: tickDoc() } : plan };
+  pending = { start: S.start, whole, body: whole ? { ...plan, ticks: tickDoc(), out: outDoc() } : plan };
   clearTimeout(timer); timer = setTimeout(flush, 500);
 }
 function flush() {
@@ -151,11 +154,12 @@ function flush() {
   if (start === S.start) S.cloudHas = true;
   send(start, (ref) => (whole ? ref.set(body) : ref.update(body)));
 }
-function queueTick(g, value) {
+function queueMark(field, g, value) {
   if (!db) return;
   if (!S.cloudHas || pending) { queueWeek(true); return; }
-  send(S.start, (ref) => ref.update({ ticks: { [g]: value }, rev: S.rev, tab: TAB }));
+  send(S.start, (ref) => ref.update({ [field]: { [g]: value }, rev: S.rev, tab: TAB }));
 }
+const queueTick = (g, value) => queueMark('ticks', g, value);
 
 // ---------------------------------------------------------------- derived
 let SHOP, INS, STATS, COLOR;
@@ -165,6 +169,7 @@ function derive() {
   // A tick is for the amount that was on the list when it was ticked. If the line has grown or gone, it comes off.
   const now = new Map(SHOP.lines.map((l) => [l.g, l.qty]));
   for (const [g, qty] of S.ticks) if (now.get(g) !== qty) S.ticks.delete(g);
+  for (const g of S.out) if (!now.has(g)) S.out.delete(g);
 }
 const ticked = (l) => S.ticks.has(l.g);
 function keepFocus(fn) {
@@ -226,7 +231,7 @@ function metaFor(slot, day) {
   if (chainFrom) bits.push(h('span', { text: `Made from ${DAY_NAMES[chainFrom.from]}'s leftovers.` }));
   if (!bits.length) {
     const n = SHOP.lines.filter((l) => l.tier === 'meals' && l.parts.some((p) => p.day === day)).length;
-    const parts = [`${n} to buy`];
+    const parts = [slot.c ? 'Cooked' : `${n} to buy`];
     if (slot.d && slot.d !== r.sv) parts.push(`for ${slot.d}`);
     const habit = INS.habitNotes.find((x) => x.day === day);
     if (habit) parts.push(`${DAY_NAMES[day]} in ${habit.n} of ${habit.of} saved weeks`);
@@ -257,6 +262,7 @@ function renderWeek() {
       }));
       const tools = [];
       if (r.b && !slot.second && !INS.batches.find((b) => b.day === i && b.second !== -1)) tools.push(h('button', { class: 'tool', type: 'button', title: 'Add its second night', 'aria-label': `Add a second night of ${r.n}`, text: '×2', style: 'font-weight:700;font-size:13px', onclick: () => { const w = E.addSecondNight(S.week, i); w ? commit(w, 'One cook, two dinners. The second night adds nothing to the shop.') : toast('No free day left for a second night.'); } }));
+      if (!slot.second && dayDate(S.start, i).toISOString().slice(0, 10) <= TODAY) tools.push(h('button', { class: 'tool', type: 'button', 'data-fk': 'cooked:' + i, text: '✓', style: 'font-size:16px;font-weight:700', 'aria-pressed': String(!!slot.c), title: slot.c ? 'Cooked' : 'Mark as cooked', 'aria-label': `${r.n} was cooked on ${DAY_NAMES[i]}`, onclick: () => commit({ ...S.week, days: S.week.days.map((x, k) => (k === i ? { ...x, c: !x.c } : x)) }, slot.c ? undefined : 'Noted. What you actually cook is what The usual learns from.') }));
       tools.push(h('button', { class: 'tool', type: 'button', 'data-fk': 'lock:' + i, svg: LOCK, 'aria-pressed': String(!!slot.lock), title: slot.lock ? 'Kept when you deal again' : 'Keep this when dealing again', 'aria-label': `Keep ${r.n} on ${DAY_NAMES[i]} when dealing again`, onclick: () => { const w = { ...S.week, days: S.week.days.map((s, k) => (k === i ? { ...s, lock: !s.lock } : s)) }; commit(w); } }));
       tools.push(h('button', { class: 'tool', type: 'button', 'data-fk': 'x:' + i, text: '×', style: 'font-size:20px', title: 'Back to the deck', 'aria-label': `Take ${r.n} off ${DAY_NAMES[i]}`, onclick: () => { commit(E.move(S.week, { day: i }, { deck: true }), ''); toast(`${r.n} is back in the deck.`, true); } }));
       inner = h('div', { class: 'slot', 'data-drop-day': i }, h('div', { class: 'dcard' + (slot.second ? ' second' : ''), 'data-drag': 'day', 'data-day': i, 'data-id': slot.r },
@@ -273,9 +279,25 @@ function renderWeek() {
     ...S.week.extras.map((id) => h('span', { class: 'xchip' }, h('span', { text: R[id].n }), h('button', { type: 'button', text: '×', 'aria-label': `Remove ${R[id].n} from extras`, onclick: () => commit({ ...S.week, extras: S.week.extras.filter((e) => e !== id) }) }))));
   renderNotes();
 }
+// Things marked "not in the shop", with the dinners that needed them.
+function outNotes() {
+  return SHOP.lines.filter((l) => S.out.has(l.g)).map((l) => {
+    const days = [...new Set(l.parts.filter((p) => p.day != null && !p.opt).map((p) => p.day))];
+    return { g: l.g, name: l.name, meals: days.map((day) => ({ day, r: S.week.days[day].r })) };
+  }).filter((o) => o.meals.length);
+}
+function swapDay(day) {
+  const old = R[S.week.days[day].r].n;
+  const res = E.swapOut(S.week, day, S.out);
+  if (!res) { toast('Nothing left in the deck avoids what is missing.'); return; }
+  const why = `${DAY_NAMES[day]}: ${old.toLowerCase()} swapped for ${R[res.r].n.toLowerCase()}, which needs ${res.extra === 0 ? 'nothing you are not already buying' : `${res.extra} more ${res.extra === 1 ? 'thing' : 'things'}`}.`;
+  commit(res.week, why);
+  toast(`${R[res.r].n} is on ${DAY_NAMES[day]} instead.`, true);
+}
 function renderNotes() {
   const out = [];
   const b = (t) => h('b', { text: t });
+  for (const o of outNotes()) out.push(h('li', { class: 'note chain' }, b(`No ${o.name.toLowerCase()} in the shop. `), `${o.meals.map((m) => `${DAY_NAMES[m.day]}'s ${R[m.r].n.toLowerCase()}`).join(' and ')} ${o.meals.length === 1 ? 'needs' : 'need'} it. `, o.meals.map((m, k) => [k ? ' ' : '', h('button', { type: 'button', text: `Swap ${DAY_NAMES[m.day]}'s dinner`, onclick: () => swapDay(m.day) })])));
   for (const c of INS.chains) out.push(h('li', { class: 'note chain' }, b('Leftover chain. '), `${DAY_NAMES[c.from]}'s ${R[c.source].n.toLowerCase()} becomes ${DAY_NAMES[c.to]}'s lasagne. One cook, two dinners, and the pork for the lasagne is not on the list.`));
   for (const w of INS.warnings) out.push(h('li', { class: 'note chain' }, b(`${R[w.r].n} has nothing to be made from. `), w.why === 'order' ? 'Move it after ' : w.day === 0 ? 'Move it later in the week and put ' : 'Put ', h('button', { type: 'button', text: R[w.needs].n, onclick: () => openRecipe(w.needs) }), w.why === 'order' ? '.' : w.day === 0 ? ' before it.' : ' on an earlier day.'));
   if (INS.shared.length) {
@@ -321,11 +343,13 @@ function tween(el, to) {
   requestAnimationFrame(step);
 }
 function itemRow(l) {
-  const done = ticked(l), open = S.open.has(l.g), id = 'tick-' + l.g;
+  const done = ticked(l), open = S.open.has(l.g), id = 'tick-' + l.g, gone = S.out.has(l.g);
+  const needing = gone ? (outNotes().find((o) => o.g === l.g) || { meals: [] }).meals : [];
   const badges = [];
   if (l.days.length >= 2) badges.push(h('span', { class: 'badge share', style: `--tc:${COLOR.get(l.g) || 'var(--rust)'}`, text: `${l.days.length} meals` }));
   if (l.weekly) badges.push(h('span', { class: 'badge weekly', text: 'every week' }));
   if (l.optional) badges.push(h('span', { class: 'badge weekly', text: 'optional' }));
+  if (gone) badges.push(h('span', { class: 'badge odd', text: 'not there' }));
   if (l.odd.length) badges.push(h('span', { class: 'badge odd', text: 'check amount', title: l.odd.join('; ') }));
   const from = [];
   for (const p of l.parts) from.push(`${p.label}${p.q != null ? ' ' + formatQty(p.q, p.unit) : ''}${p.opt ? ' (optional)' : ''}`);
@@ -333,8 +357,11 @@ function itemRow(l) {
   if (l.added) from.push(`added by hand ×${l.added.q}`);
   const detail = h('div', { class: 'detail', hidden: !open },
     l.product && h('span', { class: 'product', text: l.product }),
-    h('span', { class: 'from', text: [...from, ...l.notes, ...l.odd.map((o) => `Iris: ${o}, which looks wrong`)].join(' · ') }));
-  return h('li', { class: 'item' + (done ? ' done' : '') + (open ? ' open' : ''), 'data-g': l.g },
+    h('span', { class: 'from', text: [...from, ...l.notes, ...l.odd.map((o) => `Iris: ${o}, which looks wrong`)].join(' · ') }),
+    h('span', { class: 'acts' },
+      !done && h('button', { type: 'button', class: 'linkish', 'data-fk': 'out:' + l.g, text: gone ? 'It is there after all' : 'Not in the shop today', onclick: () => { gone ? S.out.delete(l.g) : S.out.add(l.g); S.rev = Date.now(); persist(); queueMark('out', l.g, !gone); renderAll(); } }),
+      needing.map((m) => h('button', { type: 'button', class: 'linkish', text: `Swap ${DAY_NAMES[m.day]}'s ${R[m.r].n.toLowerCase()}`, onclick: () => swapDay(m.day) }))));
+  return h('li', { class: 'item' + (done ? ' done' : '') + (gone ? ' gone' : '') + (open ? ' open' : ''), 'data-g': l.g },
     h('div', { class: 'main' },
       h('input', { type: 'checkbox', id, 'data-fk': 'tick:' + l.g, checked: done, 'aria-label': `${l.name}${l.qty ? ', ' + l.qty : ''}`, onchange: (e) => { e.target.checked ? S.ticks.set(l.g, l.qty) : S.ticks.delete(l.g); S.rev = Date.now(); persist(); queueTick(l.g, e.target.checked ? l.qty : false); refreshShop(); } }),
       h('button', { class: 'more', type: 'button', 'data-fk': 'more:' + l.g, 'aria-expanded': String(open), onclick: () => { open ? S.open.delete(l.g) : S.open.add(l.g); refreshShop(); } }, h('span', { class: 'nm', text: l.name }), badges),
@@ -349,14 +376,15 @@ function renderShop() {
   $('n-saved').hidden = STATS.saved < 1;
   $('n-saved').textContent = ` · sharing saves ${STATS.saved}`;
   $('progress').style.width = buy.length ? `${(got / buy.length) * 100}%` : '0';
-  $('n-got').textContent = got ? `${got} of ${buy.length} in the trolley` : 'in the order you walk the store';
+  const missing = buy.filter((l) => S.out.has(l.g) && !ticked(l)).length;
+  $('n-got').textContent = got && got + missing === buy.length ? (missing ? `Done. ${got} in the trolley, ${missing} not in the shop` : `Done. All ${got} in the trolley`) : got ? `${got} of ${buy.length} in the trolley` : 'in the order you walk the store';
   $('every-week').checked = S.week.everyWeek;
   const sections = [];
   DECK.aisles.forEach((name, a) => {
     const lines = buy.filter((l) => l.aisle === a);
     if (!lines.length) return;
     lines.sort((x, y) => S.ticks.has(x.g) - S.ticks.has(y.g) || x.name.localeCompare(y.name));
-    const left = lines.filter((l) => !ticked(l)).length;
+    const left = lines.filter((l) => !ticked(l) && !S.out.has(l.g)).length;
     sections.push(h('section', { class: 'aisle' }, h('div', { class: 'aisle-h' }, h('h3', { style: 'font:inherit', text: name }), h('span', { text: left ? `${left} to get` : 'done' })), h('ul', { class: 'items' }, lines.map(itemRow))));
   });
   if (!buy.length) sections.push(h('p', { class: 'empty', text: 'Nothing to buy yet. Put a dinner on the table and the list writes itself.' }));
@@ -370,7 +398,7 @@ function renderFoot() {
   $('sync').textContent = `${where} Recipes read from Iris on ${readDate()}.`;
 }
 function renderTabs() {
-  const buy = toBuy(), left = buy.filter((l) => !ticked(l)).length;
+  const buy = toBuy(), left = buy.filter((l) => !ticked(l) && !S.out.has(l.g)).length;
   $('tab-week-n').textContent = `${S.week.days.filter((s) => s.r).length} of 7`;
   $('tab-deck-n').textContent = `${E.recipeIds.length} cards`;
   $('tab-shop-n').textContent = `${left} to get`;

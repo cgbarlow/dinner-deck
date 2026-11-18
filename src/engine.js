@@ -406,6 +406,26 @@ export function makeEngine(deck, learned = []) {
     return w;
   }
 
+  // In the shop and something is not there: the dinner for `day` is swapped for one that does not need
+  // any of `avoid`, choosing the one that adds the fewest new things to the list.
+  function swapOut(week, day, avoid, rng = Math.random) {
+    const blank = { r: null, d: null, lock: false, second: false };
+    const old = week.days[day].r;
+    const days = week.days.map((s, i) => (i === day || (s.second && s.r === old) ? { ...blank } : { ...s }));
+    const used = new Set(days.map((s) => s.r).filter(Boolean)); used.add(old);
+    const have = new Set(shop({ ...week, days }).lines.map((l) => l.g));
+    let best = null;
+    for (const id of dinners) {
+      if (used.has(id) || needs[id] || R[id].i.some((ing) => avoid.has(ing.g) && !ing.o)) continue;
+      const extra = new Set(R[id].i.filter((ing) => !ing.o && !G[ing.g].s && !have.has(ing.g)).map((ing) => ing.g)).size;
+      const score = extra + rng() * 0.9;
+      if (!best || score < best.score) best = { id, extra, score };
+    }
+    if (!best) return null;
+    days[day] = { ...blank, r: best.id };
+    return { week: { ...week, days }, r: best.id, extra: best.extra };
+  }
+
   function addSecondNight(week, day) {
     const w = { ...week, days: week.days.map((s) => ({ ...s })) };
     const id = w.days[day].r;
@@ -477,5 +497,5 @@ export function makeEngine(deck, learned = []) {
     };
   }
 
-  return { G, R, recipeIds, dinners, needs, feeds, planned, habits, plansCount: plans.length, shop, insights, stats, deal, move, addSecondNight, encode, decode, toIris, STYLES, unitOf };
+  return { G, R, recipeIds, dinners, needs, feeds, planned, habits, plansCount: plans.length, shop, insights, stats, deal, move, swapOut, addSecondNight, encode, decode, toIris, STYLES, unitOf };
 }

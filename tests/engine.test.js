@@ -245,3 +245,12 @@ test('weeks planned in the app count toward habits', () => {
   const E2 = makeEngine(deck, [{ days: [null, null, null, null, null, null, tacos] }, { days: [null, null, null, null, null, null, tacos] }]);
   assert.equal(E2.habits[6].r, tacos); assert.equal(E2.habits[6].of, 5);
 });
+
+test('not in the shop: the swap avoids the missing thing and adds as little as it can', () => {
+  const w = weekOf(['Egg Pie', 'Roast chicken', 'Spaghetti']);
+  const res = E.swapOut(w, 0, new Set([gid('Cauliflower')]), mulberry32(3));
+  assert.ok(res && res.r !== id('Egg Pie'));
+  assert.ok(!E.R[res.r].i.some((i) => i.g === gid('Cauliflower') && !i.o));
+  assert.ok(res.extra <= 4, `adds ${res.extra}`);
+  assert.equal(res.week.days[1].r, id('Roast chicken'));
+});
