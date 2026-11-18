@@ -287,3 +287,12 @@ test('groceries held twice in Iris are one line here', () => {
   assert.equal(lineFor(shop, 'Onions'), undefined);
   assert.equal(Object.values(E.G).filter((g) => g.n === 'Pork shoulder').length, 1);
 });
+
+test('nothing wasted: two meals that finish a can between them are named', () => {
+  // No two recipes in the deck do this at their written servings, so scale two that share a can.
+  const w = weekOf(['Chicken rice', 'Veg stew']); w.days[1].d = 3; // veg stew for 3 uses 1½ cans of chickpeas; chicken rice ½
+  const ins = E.insights(w);
+  const c = ins.closed.find((x) => x.name === 'Chickpeas');
+  assert.ok(c, 'chickpeas close'); assert.equal(c.q, 2); assert.deepEqual(c.by.sort(), ['Chicken rice', 'Veg stew']);
+  assert.ok(!ins.loose.some((l) => l.name === 'Chickpeas'));
+});
