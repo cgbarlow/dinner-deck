@@ -1,0 +1,11 @@
+{
+  "name": "dinner-deck",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "data": "python3 scripts/build_data.py",
+    "build": "python3 scripts/build.py",
+    "test": "node --test tests/engine.test.js",
+    "e2e": "node tests/e2e/run.mjs"
+  }
+}

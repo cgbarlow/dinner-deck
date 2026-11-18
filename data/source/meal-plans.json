@@ -1,0 +1,8 @@
+{
+  "note": "The three saved meal plans in the Iris set 'Weekly meal plans', read 18 November 2026. Weeks run Saturday to Friday. Values are recipe diagram ids.",
+  "plans": [
+    {"id": "c51798f5-6770-4a4f-9b82-aeddccea5f9b", "start": "2026-05-23", "days": ["0b71af2a-9950-44f9-b414-32fb4759163f", "e86b107e-45cb-41ab-9865-ac3fb5ffa1a8", "2b9e8712-4959-4fdd-b2fa-a68c921a0232", "cc47cf54-40e2-4246-90e9-36bab8660361", "b4174881-f836-4188-a8c9-1b1514fc2254", "dbeedae5-2033-478c-b89d-37eec2d1d6aa", "30b31acd-635d-44f2-9fff-c36497bcc382"]},
+    {"id": "1467d978-a366-4618-9d4f-bdca48fb01a3", "start": "2026-05-30", "days": ["0b71af2a-9950-44f9-b414-32fb4759163f", "dc93844f-3c40-4244-bd52-1aaefab9795b", "cc47cf54-40e2-4246-90e9-36bab8660361", "2b9e8712-4959-4fdd-b2fa-a68c921a0232", "b4174881-f836-4188-a8c9-1b1514fc2254", "ca271c36-e5fc-44d4-9616-a262bc23aa92", "58b409fd-4534-4267-b248-f08bdad8c5bd"]},
+    {"id": "5cd03d1d-018c-4aa0-bd22-de45a584e7c8", "start": "2026-06-06", "days": ["418efdfd-63fa-48e2-a599-f8f469ae941c", "dc93844f-3c40-4244-bd52-1aaefab9795b", "bb3b9975-7dd3-45af-b94d-e8508c022aab", "a2aa5b15-a70d-4884-8d10-baafdd70665e", "b4174881-f836-4188-a8c9-1b1514fc2254", "fa398496-120d-416a-873e-1601c1a6b88a", "0b71af2a-9950-44f9-b414-32fb4759163f"]}
+  ]
+}

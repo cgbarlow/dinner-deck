@@ -1,0 +1,90 @@
+<title>Dinner Deck</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+/*CSS*/
+</style>
+<div class="app" id="app" data-view="week">
+  <aside class="panel deck" aria-label="Recipe deck">
+    <div class="deck-head">
+      <div>
+        <h1>Dinner Deck</h1>
+        <div class="sub" id="deck-sub"></div>
+      </div>
+      <label class="field" for="search">Find a meal
+        <input id="search" type="search" placeholder="salmon, one-pot, cabbage…" autocomplete="off">
+      </label>
+      <div class="chips" id="filters" role="group" aria-label="Filter the deck">
+        <button class="chip" type="button" data-f="all">All</button>
+        <button class="chip" type="button" data-f="sea">Sea</button>
+        <button class="chip" type="button" data-f="chicken">Chicken</button>
+        <button class="chip" type="button" data-f="pork">Pork</button>
+        <button class="chip" type="button" data-f="lamb">Lamb</button>
+        <button class="chip" type="button" data-f="veg">No meat</button>
+        <button class="chip" type="button" data-f="extras">Not dinner</button>
+      </div>
+    </div>
+    <div class="picking" id="pick-banner" hidden><span id="pick-text"></span><button type="button" id="pick-cancel">Cancel</button></div>
+    <div class="scroll"><ul class="cards" id="cards"></ul></div>
+  </aside>
+
+  <main class="panel table" aria-label="This week">
+    <div class="scroll">
+      <div class="table-head">
+        <div class="weeknav">
+          <button class="icon-btn" type="button" id="prev" aria-label="Previous week">‹</button>
+          <h2 id="range"></h2>
+          <button class="icon-btn" type="button" id="next" aria-label="Next week">›</button>
+        </div>
+        <div class="deal">
+          <div class="seg" id="styles" role="group" aria-label="How to deal">
+            <button type="button" data-s="usual" title="Weighted toward your saved weeks">The usual</button>
+            <button type="button" data-s="thrifty" title="Shortest shop">Thrifty</button>
+            <button type="button" data-s="wild" title="Dinners you have not planned before">Wildcard</button>
+          </div>
+          <button class="primary" type="button" id="deal">Deal me a week</button>
+          <button class="icon-btn" type="button" id="clear" aria-label="Clear the table" title="Clear the table">⌫</button>
+        </div>
+      </div>
+      <p class="why" id="why" aria-live="polite"></p>
+      <ol class="days" id="days"></ol>
+      <div class="extras" id="extras"></div>
+      <ul class="notes" id="notes"></ul>
+    </div>
+  </main>
+
+  <aside class="panel shop" aria-label="Shopping list">
+    <div class="shop-head">
+      <div class="row"><h2>The shop</h2><div class="count"><b id="n-items">0</b> things · <b id="n-aisles">0</b> aisles<span class="saved" id="n-saved" hidden></span></div></div>
+      <div class="bar" aria-hidden="true"><i id="progress"></i></div>
+      <div class="row"><span class="fine" id="n-got"></span><label class="switch" for="every-week"><input type="checkbox" id="every-week"> Every-week items</label></div>
+      <div class="addrow">
+        <label class="sr" for="add">Add anything else to the list</label>
+        <input id="add" type="text" placeholder="Add anything else: foil, toothpaste, wine…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="suggest">
+        <ul class="suggest" id="suggest" hidden></ul>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="list" id="list"></div>
+      <div class="shop-more">
+        <div class="btns"><button class="ghost" type="button" id="share">Put this week in the link</button><button class="ghost" type="button" id="untick">Untick all</button></div>
+        <div class="fine" id="sync"></div>
+      </div>
+    </div>
+    <div class="shop-foot">
+      <div class="btns"><button class="go" type="button" id="save">Save to Iris</button><button class="ghost" type="button" id="copy">Copy list</button></div>
+    </div>
+  </aside>
+
+  <nav class="tabs" aria-label="Views">
+    <button type="button" data-v="week">Week<small id="tab-week-n"></small></button>
+    <button type="button" data-v="deck">Deck<small id="tab-deck-n"></small></button>
+    <button type="button" data-v="shop">Shop<small id="tab-shop-n"></small></button>
+  </nav>
+</div>
+<dialog id="sheet" aria-labelledby="sheet-title"><div class="sheet" id="sheet-inner"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="application/json" id="deck-data">/*DATA*/</script>
+<script type="module">
+/*JS*/
+</script>

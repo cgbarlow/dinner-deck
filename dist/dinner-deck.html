@@ -1,0 +1,1388 @@
+<title>Dinner Deck</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: a card table. Deck in the left hand, a green baize week in the middle, the shop as a paper list on the right. */
+:root {
+  --paper: #F2F6F1; --panel: #FFFFFF; --ink: #16241B; --muted: #4B5E51; --line: #D5DFD5;
+  --green: #1F7A4D; --green-ink: #FFFFFF; --felt: #1E5A3F; --felt-deep: #174832; --felt-line: #3C7A5C; --felt-ink: #ECF5EE; --felt-muted: #B5D2C0;
+  --deal: #FFFDF6; --deal-ink: #174832; --card: #FFFDF6; --card-ink: #16241B; --card-muted: #55665A; --card-edge: #D9D3BF;
+  --rust: #9A3412; --rust-bg: #FFF1E8; --rust-line: #F0C4AA; --rust-ink: #5A2410;
+  --sea: #1B6FA8; --chicken: #A86A12; --pork: #B03A63; --lamb: #6A4BA3; --veg: #2E7D32;
+  --t0: #C2410C; --t1: #1D6FA5; --t2: #7C3AED; --t3: #B45309; --t4: #0F766E; --t5: #BE185D; --t6: #4D7C0F; --t7: #475569;
+  --display: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
+  --body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .12), 0 6px 14px -8px rgba(0, 0, 0, .35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0E1612; --panel: #131D18; --ink: #E7F0E9; --muted: #9DB2A4; --line: #25352B;
+    --green: #47B881; --green-ink: #06140D; --felt: #123526; --felt-deep: #0C281C; --felt-line: #2B5E46; --felt-ink: #E3F0E7; --felt-muted: #93B5A1;
+    --deal: #47B881; --deal-ink: #06140D; --card: #26362D; --card-ink: #EDF4EE; --card-muted: #A9BBAE; --card-edge: #3D5246;
+    --rust: #F2A27C; --rust-bg: #33190F; --rust-line: #6B3620; --rust-ink: #F8CDB6;
+    --sea: #6CB8E6; --chicken: #E5B45A; --pork: #F08BAE; --lamb: #B49BEA; --veg: #7CCB80;
+    --t0: #FB923C; --t1: #60A5FA; --t2: #C4B5FD; --t3: #FBBF24; --t4: #5EEAD4; --t5: #F9A8D4; --t6: #BEF264; --t7: #CBD5E1;
+    --shadow: 0 1px 0 rgba(0, 0, 0, .5), 0 8px 16px -8px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0E1612; --panel: #131D18; --ink: #E7F0E9; --muted: #9DB2A4; --line: #25352B;
+  --green: #47B881; --green-ink: #06140D; --felt: #123526; --felt-deep: #0C281C; --felt-line: #2B5E46; --felt-ink: #E3F0E7; --felt-muted: #93B5A1;
+  --deal: #47B881; --deal-ink: #06140D; --card: #26362D; --card-ink: #EDF4EE; --card-muted: #A9BBAE; --card-edge: #3D5246;
+  --rust: #F2A27C; --rust-bg: #33190F; --rust-line: #6B3620; --rust-ink: #F8CDB6;
+  --sea: #6CB8E6; --chicken: #E5B45A; --pork: #F08BAE; --lamb: #B49BEA; --veg: #7CCB80;
+  --t0: #FB923C; --t1: #60A5FA; --t2: #C4B5FD; --t3: #FBBF24; --t4: #5EEAD4; --t5: #F9A8D4; --t6: #BEF264; --t7: #CBD5E1;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .5), 0 8px 16px -8px rgba(0, 0, 0, .7);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/1.4 var(--body); -webkit-text-size-adjust: 100%; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3 { margin: 0; font-family: var(--display); text-wrap: balance; }
+:focus-visible { outline: 3px solid var(--t1); outline-offset: 2px; border-radius: 6px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.app { height: 100%; display: grid; grid-template-columns: 300px minmax(0, 1fr) 390px; }
+.panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.scroll { overflow-y: auto; min-height: 0; flex: 1; overscroll-behavior: contain; }
+
+/* ---------- deck ---------- */
+.deck { background: var(--paper); border-right: 1px solid var(--line); }
+.deck-head { padding: 22px 16px 12px max(20px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 12px; }
+h1 { font-weight: 800; font-size: 30px; line-height: 1; letter-spacing: -.01em; }
+.sub { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.field input { min-height: 42px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--panel); color: var(--ink); font-size: 15px; width: 100%; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { min-height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 12.5px; font-weight: 500; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.picking { margin: 0 16px 8px max(20px, env(safe-area-inset-left, 0px)); padding: 8px 10px; border-radius: 10px; background: var(--felt); color: var(--felt-ink); font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.picking button { border: 0; background: transparent; color: var(--felt-ink); text-decoration: underline; padding: 4px; }
+.cards { list-style: none; margin: 0; padding: 2px 16px 24px max(20px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 7px; }
+.pcard { width: 100%; text-align: left; display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 8px 10px; background: var(--card); color: var(--card-ink); border: 1px solid var(--card-edge); border-radius: 10px; box-shadow: 0 2px 0 var(--card-edge); font-weight: 500; font-size: 14px; line-height: 1.25; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.pcard:hover { border-color: var(--green); }
+.pcard .nm { flex: 1; min-width: 0; }
+.pcard .tags { display: flex; gap: 4px; flex-shrink: 0; }
+.tag { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 2px 5px; border-radius: 4px; background: color-mix(in srgb, var(--card-ink) 8%, transparent); color: var(--card-muted); white-space: nowrap; }
+.pcard.used { opacity: .55; }
+.pcard.used .tag.on { background: var(--green); color: var(--green-ink); opacity: 1; }
+.pip { width: 22px; height: 22px; flex-shrink: 0; }
+.pip.sea { color: var(--sea); } .pip.chicken { color: var(--chicken); } .pip.pork { color: var(--pork); } .pip.lamb { color: var(--lamb); } .pip.veg { color: var(--veg); }
+.empty { padding: 18px 20px; color: var(--muted); font-size: 14px; }
+
+/* ---------- table ---------- */
+.table { background: radial-gradient(120% 90% at 50% 0%, var(--felt) 0%, var(--felt-deep) 100%); color: var(--felt-ink); }
+.table-head { padding: 20px 24px 10px; display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; justify-content: space-between; }
+.weeknav { display: flex; align-items: center; gap: 6px; }
+.weeknav h2 { font-weight: 600; font-size: 21px; }
+.icon-btn { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--felt-line); background: transparent; color: var(--felt-ink); display: inline-grid; place-items: center; font-size: 16px; line-height: 1; }
+.icon-btn:hover { background: color-mix(in srgb, var(--felt-ink) 10%, transparent); }
+.deal { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--felt-line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--felt-muted); padding: 0 10px; min-height: 34px; font-size: 13px; font-weight: 500; }
+.seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--felt-ink) 16%, transparent); color: var(--felt-ink); }
+.primary { min-height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: var(--deal); color: var(--deal-ink); font-weight: 700; font-size: 15px; box-shadow: 0 3px 0 rgba(0, 0, 0, .28); display: inline-flex; align-items: center; gap: 8px; }
+.primary:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, .28); }
+.why { margin: 0 24px 6px; font-size: 13.5px; color: var(--felt-muted); min-height: 19px; }
+.days { list-style: none; margin: 0; padding: 4px 24px 8px; display: flex; flex-direction: column; gap: 8px; }
+.day { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; align-items: stretch; position: relative; }
+.day .d { display: flex; flex-direction: column; justify-content: center; font-family: var(--display); line-height: 1.05; }
+.day .d b { font-weight: 800; font-size: 15px; letter-spacing: .02em; text-transform: uppercase; }
+.day .d span { font-size: 12px; color: var(--felt-muted); }
+.slot { min-height: 62px; border-radius: 12px; border: 1.5px dashed var(--felt-line); display: flex; align-items: stretch; position: relative; }
+.slot.over { border-color: var(--card); background: color-mix(in srgb, var(--felt-ink) 12%, transparent); }
+.slot .open { flex: 1; border: 0; background: transparent; color: var(--felt-muted); font-size: 13.5px; text-align: left; padding: 0 14px; border-radius: 12px; }
+.slot .open:hover { color: var(--felt-ink); }
+.dcard { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; background: var(--card); color: var(--card-ink); border-radius: 11px; box-shadow: var(--shadow); margin: -1.5px; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.dcard.second { background: color-mix(in srgb, var(--card) 78%, var(--felt)); }
+.dcard .body { flex: 1; min-width: 0; border: 0; background: transparent; text-align: left; padding: 0; color: inherit; }
+.dcard .nm { font-weight: 700; font-size: 15px; line-height: 1.2; display: block; }
+.dcard .meta { font-size: 12.5px; color: var(--card-muted); display: block; margin-top: 2px; }
+.dcard .meta .warn { color: var(--rust); font-weight: 700; }
+.threads { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; max-width: 46%; }
+.thread { border: 0; font-size: 11.5px; font-weight: 500; padding: 2px 7px 2px 6px; border-radius: 999px; background: color-mix(in srgb, var(--tc) 14%, transparent); color: var(--card-ink); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.thread::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--tc); }
+.tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.tool { width: 32px; height: 32px; border-radius: 8px; border: 0; background: transparent; color: var(--card-muted); display: inline-grid; place-items: center; }
+.tool:hover { background: color-mix(in srgb, var(--card-ink) 9%, transparent); color: var(--card-ink); }
+.tool[aria-pressed="true"] { color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+.tool svg { width: 16px; height: 16px; }
+.link { position: absolute; left: 20px; top: calc(100% - 6px); height: 20px; z-index: 2; display: flex; align-items: center; }
+.link span { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; background: var(--rust-bg); color: var(--rust-ink); border: 1px solid var(--rust-line); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+.hl { box-shadow: 0 0 0 2px var(--t3) !important; }
+.extras { margin: 2px 24px 0; padding-left: 64px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--felt-muted); min-height: 34px; }
+.extras.over { outline: 1.5px dashed var(--card); border-radius: 10px; }
+.xchip { display: inline-flex; align-items: center; gap: 4px; background: var(--card); color: var(--card-ink); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 13px; font-weight: 500; }
+.xchip button { border: 0; background: transparent; width: 24px; height: 24px; border-radius: 50%; color: var(--card-muted); }
+.notes { margin: 12px 24px 28px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.notes h3 { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--felt-muted); margin-bottom: 2px; font-family: var(--body); }
+.note { font-size: 14px; line-height: 1.4; padding: 9px 12px; border-radius: 10px; background: color-mix(in srgb, var(--felt-ink) 8%, transparent); border: 1px solid color-mix(in srgb, var(--felt-ink) 12%, transparent); }
+.note b { font-weight: 700; }
+.note.chain { background: var(--rust-bg); color: var(--rust-ink); border-color: var(--rust-line); }
+.note button { border: 0; background: transparent; color: inherit; text-decoration: underline; text-underline-offset: 2px; padding: 0; font-weight: 500; }
+
+/* ---------- shop ---------- */
+.shop { background: var(--panel); border-left: 1px solid var(--line); }
+.shop-head { padding: 20px max(20px, env(safe-area-inset-right, 0px)) 10px 20px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
+.shop-head .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.shop-head h2 { font-weight: 600; font-size: 21px; }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.count b { color: var(--ink); font-weight: 700; }
+.saved { color: var(--green); font-weight: 700; }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--green); border-radius: 3px; transition: width .3s ease; }
+.addrow { position: relative; }
+.addrow input { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--paper); color: var(--ink); }
+.suggest { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); max-height: 260px; overflow-y: auto; }
+.suggest button { width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 7px; display: flex; justify-content: space-between; gap: 8px; }
+.suggest button:hover, .suggest button.cur { background: var(--paper); }
+.suggest small { color: var(--muted); }
+.switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.switch input { width: 18px; height: 18px; accent-color: var(--green); margin: 0; }
+.list { padding: 6px max(20px, env(safe-area-inset-right, 0px)) 20px 20px; }
+.aisle { margin-top: 14px; }
+.aisle-h { display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--green); padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.aisle-h span { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.items { list-style: none; margin: 0; padding: 0; }
+.item { border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.item .main { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.item input[type="checkbox"] { width: 20px; height: 20px; margin: 0; accent-color: var(--green); flex-shrink: 0; }
+.item .more { flex: 1; min-width: 0; border: 0; background: transparent; text-align: left; padding: 6px 0; display: flex; align-items: center; gap: 3px 6px; flex-wrap: wrap; }
+.item .more .nm { margin-right: 2px; }
+.item .nm { font-weight: 500; }
+.item .qty { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13.5px; text-align: right; max-width: 46%; }
+.item.done .nm { text-decoration: line-through; color: var(--muted); }
+.item.done .qty { opacity: .6; }
+.badge { font-size: 11px; font-weight: 700; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.badge.share { color: var(--rust); background: var(--rust-bg); display: inline-flex; align-items: center; gap: 4px; }
+.badge.share::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--tc, var(--rust)); }
+.badge.weekly { color: var(--muted); background: var(--paper); }
+.badge.odd { color: var(--rust); border: 1px solid var(--rust-line); }
+.item .x { border: 0; background: transparent; color: var(--muted); width: 28px; height: 28px; border-radius: 6px; }
+.detail { font-size: 12.5px; color: var(--muted); padding: 0 0 8px 30px; line-height: 1.45; }
+.detail .product { display: block; }
+details.cupboard { margin-top: 16px; }
+details.cupboard summary { font-size: 13px; font-weight: 500; color: var(--muted); padding: 6px 0; cursor: pointer; }
+.shop-foot { padding: 12px max(20px, env(safe-area-inset-right, 0px)) 16px 20px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.shop-more { padding: 4px max(20px, env(safe-area-inset-right, 0px)) 22px 20px; display: flex; flex-direction: column; gap: 10px; }
+.shop-more .ghost { min-height: 38px; font-size: 13.5px; }
+.after { display: flex; flex-direction: column; gap: 6px; font-size: 14.5px; }
+.go { flex: 1; min-height: 44px; border: 0; border-radius: 12px; background: var(--green); color: var(--green-ink); font-weight: 700; }
+.ghost { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); font-weight: 500; }
+.fine { font-size: 12px; color: var(--muted); }
+
+/* ---------- sheet ---------- */
+dialog { border: 0; padding: 0; border-radius: 16px; background: var(--panel); color: var(--ink); width: min(560px, calc(100vw - 32px)); max-height: min(86vh, 760px); box-shadow: 0 24px 60px -12px rgba(0, 0, 0, .5); }
+dialog::backdrop { background: rgba(8, 20, 14, .55); }
+.sheet { display: flex; flex-direction: column; max-height: inherit; }
+.sheet-head { padding: 20px 20px 12px; display: flex; gap: 12px; align-items: flex-start; border-bottom: 1px solid var(--line); }
+.sheet-head h2 { font-size: 22px; font-weight: 800; line-height: 1.1; flex: 1; }
+.sheet-head .pip { width: 30px; height: 30px; margin-top: 1px; }
+.close { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); flex-shrink: 0; }
+.sheet-body { padding: 14px 20px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.sheet-body h3 { font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--green); }
+.sheet-body p { margin: 0; max-width: 65ch; }
+.ing { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 12px; font-size: 14.5px; }
+.ing .q { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.ing .n small { color: var(--muted); }
+.ing .sec { grid-column: 1 / -1; font-weight: 700; margin-top: 6px; font-size: 13px; }
+.method { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; font-size: 14.5px; max-width: 65ch; }
+.puton { display: flex; flex-wrap: wrap; gap: 6px; }
+.puton button { min-width: 48px; min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); font-weight: 700; font-family: var(--display); font-size: 13.5px; padding: 0 10px; }
+.puton button:hover { border-color: var(--green); }
+.puton button.here { background: var(--green); color: var(--green-ink); border-color: var(--green); }
+.stepper { display: inline-flex; align-items: center; gap: 10px; }
+.stepper button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); font-size: 18px; }
+.stepper output { min-width: 2ch; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sheet-foot { padding: 12px 20px 16px; border-top: 1px solid var(--line); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+a { color: var(--green); }
+.dest { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dest li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); font-size: 14px; }
+.dest b { display: block; }
+.dest small { color: var(--muted); }
+.status { font-size: 14px; padding: 10px 12px; border-radius: 10px; background: var(--rust-bg); color: var(--rust-ink); border: 1px solid var(--rust-line); }
+.status.ok { background: color-mix(in srgb, var(--green) 12%, var(--panel)); color: var(--ink); border-color: color-mix(in srgb, var(--green) 40%, var(--panel)); }
+textarea.copy { width: 100%; min-height: 180px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font: 12.5px/1.45 ui-monospace, 'SF Mono', Menlo, monospace; padding: 10px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50; max-width: calc(100vw - 32px); text-align: center; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.ghostcard { position: fixed; z-index: 60; pointer-events: none; transform: rotate(-2.5deg) scale(1.03); box-shadow: 0 18px 30px -10px rgba(0, 0, 0, .55); opacity: .96; margin: 0; }
+body.dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+body.dragging .deck { outline: 0; }
+.deck.over { background: color-mix(in srgb, var(--rust-bg) 60%, var(--paper)); }
+.tabs { display: none; }
+
+/* ---------- narrower ---------- */
+@media (max-width: 1180px) { .app { grid-template-columns: 250px minmax(0, 1fr) 330px; } .threads { display: none; } }
+@media (max-width: 900px) {
+  .app { display: flex; flex-direction: column; }
+  .app > .panel { display: none; flex: 1; border: 0; }
+  .app[data-view="week"] > .table, .app[data-view="deck"] > .deck, .app[data-view="shop"] > .shop { display: flex; }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--panel); border-top: 1px solid var(--line); padding: 4px max(8px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+  .tabs button { border: 0; background: transparent; min-height: 50px; border-radius: 10px; font-weight: 700; font-family: var(--display); font-size: 14px; color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+  .tabs button small { font: 500 11.5px var(--body); font-variant-numeric: tabular-nums; }
+  .tabs button[aria-current="true"] { color: var(--ink); background: var(--paper); }
+  .deck-head, .cards, .picking { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); margin-left: 0; margin-right: 0; }
+  .picking { margin: 0 16px 8px; }
+  .table-head { padding: 16px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+  .why, .notes { margin-left: 16px; margin-right: 16px; }
+  .days { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .day { grid-template-columns: 40px minmax(0, 1fr); gap: 8px; }
+  .extras { margin: 2px 16px 0; padding-left: 48px; }
+  .shop-head, .list, .shop-foot, .shop-more { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .item .main { min-height: 52px; }
+  .item input[type="checkbox"] { width: 26px; height: 26px; }
+  .item .nm { font-size: 16px; }
+  .detail { display: block !important; padding-left: 36px; }
+  .detail .from { display: none; }
+  .item.open .detail .from { display: block; }
+  .weeknav h2 { font-size: 18px; }
+  .toast { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 18px 18px 0 0; max-height: 90vh; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+</style>
+<div class="app" id="app" data-view="week">
+  <aside class="panel deck" aria-label="Recipe deck">
+    <div class="deck-head">
+      <div>
+        <h1>Dinner Deck</h1>
+        <div class="sub" id="deck-sub"></div>
+      </div>
+      <label class="field" for="search">Find a meal
+        <input id="search" type="search" placeholder="salmon, one-pot, cabbage…" autocomplete="off">
+      </label>
+      <div class="chips" id="filters" role="group" aria-label="Filter the deck">
+        <button class="chip" type="button" data-f="all">All</button>
+        <button class="chip" type="button" data-f="sea">Sea</button>
+        <button class="chip" type="button" data-f="chicken">Chicken</button>
+        <button class="chip" type="button" data-f="pork">Pork</button>
+        <button class="chip" type="button" data-f="lamb">Lamb</button>
+        <button class="chip" type="button" data-f="veg">No meat</button>
+        <button class="chip" type="button" data-f="extras">Not dinner</button>
+      </div>
+    </div>
+    <div class="picking" id="pick-banner" hidden><span id="pick-text"></span><button type="button" id="pick-cancel">Cancel</button></div>
+    <div class="scroll"><ul class="cards" id="cards"></ul></div>
+  </aside>
+
+  <main class="panel table" aria-label="This week">
+    <div class="scroll">
+      <div class="table-head">
+        <div class="weeknav">
+          <button class="icon-btn" type="button" id="prev" aria-label="Previous week">‹</button>
+          <h2 id="range"></h2>
+          <button class="icon-btn" type="button" id="next" aria-label="Next week">›</button>
+        </div>
+        <div class="deal">
+          <div class="seg" id="styles" role="group" aria-label="How to deal">
+            <button type="button" data-s="usual" title="Weighted toward your saved weeks">The usual</button>
+            <button type="button" data-s="thrifty" title="Shortest shop">Thrifty</button>
+            <button type="button" data-s="wild" title="Dinners you have not planned before">Wildcard</button>
+          </div>
+          <button class="primary" type="button" id="deal">Deal me a week</button>
+          <button class="icon-btn" type="button" id="clear" aria-label="Clear the table" title="Clear the table">⌫</button>
+        </div>
+      </div>
+      <p class="why" id="why" aria-live="polite"></p>
+      <ol class="days" id="days"></ol>
+      <div class="extras" id="extras"></div>
+      <ul class="notes" id="notes"></ul>
+    </div>
+  </main>
+
+  <aside class="panel shop" aria-label="Shopping list">
+    <div class="shop-head">
+      <div class="row"><h2>The shop</h2><div class="count"><b id="n-items">0</b> things · <b id="n-aisles">0</b> aisles<span class="saved" id="n-saved" hidden></span></div></div>
+      <div class="bar" aria-hidden="true"><i id="progress"></i></div>
+      <div class="row"><span class="fine" id="n-got"></span><label class="switch" for="every-week"><input type="checkbox" id="every-week"> Every-week items</label></div>
+      <div class="addrow">
+        <label class="sr" for="add">Add anything else to the list</label>
+        <input id="add" type="text" placeholder="Add anything else: foil, toothpaste, wine…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="suggest">
+        <ul class="suggest" id="suggest" hidden></ul>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="list" id="list"></div>
+      <div class="shop-more">
+        <div class="btns"><button class="ghost" type="button" id="share">Put this week in the link</button><button class="ghost" type="button" id="untick">Untick all</button></div>
+        <div class="fine" id="sync"></div>
+      </div>
+    </div>
+    <div class="shop-foot">
+      <div class="btns"><button class="go" type="button" id="save">Save to Iris</button><button class="ghost" type="button" id="copy">Copy list</button></div>
+    </div>
+  </aside>
+
+  <nav class="tabs" aria-label="Views">
+    <button type="button" data-v="week">Week<small id="tab-week-n"></small></button>
+    <button type="button" data-v="deck">Deck<small id="tab-deck-n"></small></button>
+    <button type="button" data-v="shop">Shop<small id="tab-shop-n"></small></button>
+  </nav>
+</div>
+<dialog id="sheet" aria-labelledby="sheet-title"><div class="sheet" id="sheet-inner"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="application/json" id="deck-data">{"read":"2026-11-18","aisles":["Produce","Deli","Gluten-free","Pantry","Canned Goods","Cereals & Breakfast","Beverages","Meat & Poultry","Bakery","Household","Personal Care","Chilled","Frozen"],"groceries":{"79ec44f4-2390-40b2-87f9-da195b02d514":{"n":"Frozen chips","a":12,"u":"g"},"41914a59-aa2e-4a98-adce-fd6b8ff4e0c1":{"n":"Gluten free buns","a":2,"u":"unit","p":"Gerry's High Protein Buns 4 pack"},"23195e13-77df-458a-9332-8ea303692260":{"n":"Frozen corn","a":12,"u":"cup","p":"Mccain Corn Kernels Super Juicy 1kg"},"382ab270-73f6-430c-9033-9d6bd040abef":{"n":"Chopped tomato","a":4,"u":"can","p":"Essentials Tomatoes Diced 400g"},"243c23de-e70b-4a4a-9673-8424c470fa51":{"n":"Kids Toothpaste","a":10,"u":"unit","p":"Colgate MaxFresh Breath Hearts Rainbow Fresh toothpaste"},"0ddc539d-ff0d-4766-a88c-4d6a2189f608":{"n":"Yoghurt multi-pack (single serve)","a":11,"u":"cup","p":"Fresh N Fruity Yoghurt 6pk Sunshine Fruits"},"61dd8256-d433-4d5a-a417-2a8dac1c211d":{"n":"Lamb for bbq","a":7,"u":"g","p":"WW Lamb Gourmet Hind Shanks"},"d3afd343-3d24-4b35-884b-39b7b7fc85d1":{"n":"Apple","a":0,"u":"unit"},"56f11249-91a4-4e3e-9ab9-19b053cfdea5":{"n":"Soy milk","a":3,"u":"ml","p":"Macro Organic Soy Milk"},"6be80510-276b-473c-a6eb-21fa69fcc8b2":{"n":"Shin Ramyun","a":3,"u":"packs"},"73a44e0a-028e-4ede-a663-4c5decbb8442":{"n":"Soy sauce","a":3,"u":"tbsp"},"e0c10600-1a3d-4847-ac54-b20bee399e53":{"n":"Ground cumin","a":3,"u":"tsp","s":1},"c13c1d5f-d5ef-4a54-9cd0-285f6601c681":{"n":"Broccoli","a":0,"u":"head","p":"Broccoli Each"},"7832b660-d7ed-40ae-a4c1-3142f7ee8e5a":{"n":"Cauliflower","a":0,"u":"cup","p":"Cauliflower Whole"},"de176dc5-faff-45e8-b165-67ccc20bae89":{"n":"Leek","a":0,"u":"g","p":"Leek Ea"},"0fac1197-f3c5-48ba-ba0a-be5a3469a200":{"n":"Parsley","a":0,"u":"sprinkle","s":1},"fda8035a-fef7-422c-ac8b-b4056e3106f9":{"n":"Onions","a":0,"u":"unit"},"3a3c567d-10cd-4944-9cdb-7bd4258e9981":{"n":"Corn cobs","a":0,"u":"piece"},"1c8159e7-4d00-4493-9f92-e69eaaeb337c":{"n":"Courgette","a":0,"u":"unit"},"bd99220e-ae34-425c-afd7-b53638d906de":{"n":"Apples","a":0,"u":"unit","p":"Apple Ambrosia 1.5kg P/P"},"09f19c4a-7821-4fab-bb52-b023fe18abda":{"n":"Cabbage","a":0,"u":"cup","p":"Cabbage Green Half"},"3df94db7-d5b3-4f1a-85f9-9442ce57be3f":{"n":"Pomegranate pulp","a":0,"u":"tbsp"},"6508f112-2219-41c1-acd0-0827fa90482c":{"n":"Aubergine","a":0,"u":"unit"},"aadaf8ce-e32f-4849-86ac-f475e1d27179":{"n":"Artichokes","a":0,"u":"unit"},"fd9b922a-0c0d-4649-8b06-e8ca6370a4b8":{"n":"Beer","a":6,"u":"bottle","p":"Peroni 0Percent Bottles 12Pack 330ml"},"3ad8f66a-09e5-4686-8ea1-5c51036f4474":{"n":"Lemons","a":0,"u":"unit"},"ed19fe6f-9eac-4c62-ac8c-dc696e7b698b":{"n":"Soy cream","a":11,"u":"ml","p":"Alpro Soy Cream Regular 250ml"},"d0519e61-61ad-4b60-b8c7-92259b531dcb":{"n":"Soups","a":3,"u":"can","p":"Naked Kitchen Soup Rich Tomato 500g"},"4ed7e480-10a3-4249-8aee-3adc7507fed3":{"n":"Sweetner","a":3,"u":"unit","s":1},"3bff20d0-fdb8-40dd-9219-2fb33dcba788":{"n":"Seasoning","a":3,"u":"tsp","s":1},"96a9cd61-2f0c-49f7-a029-25d33b9e74c3":{"n":"Victor pies","a":12,"u":"unit","p":"Bakers Son Chilled Single Pie Vegan Buttery Chicken 200g"},"75032e9a-20d6-4833-8ed3-af196c4d1dd8":{"n":"Edamame","a":12,"u":"cup"},"51ef4ab8-ff99-49fe-8669-946c8d5a3fff":{"n":"Pork buns","a":12,"u":"unit"},"ef25be3a-a49d-40a5-8aa7-343bd89e4d44":{"n":"Red bean buns","a":12,"u":"unit"},"011385cd-2f3a-44a2-8270-80b2fdec5fd2":{"n":"Bread","a":8,"u":"unit","p":"Freyas Bread Soy/linseed 750gm"},"7d10cf11-9af4-4791-b44c-dd583d6b46b8":{"n":"Buckwheat","a":1,"u":"cup","p":"Macro Organic Buckwheat Raw 500g"},"fe637f8f-f8ac-4731-a81a-25282ff92fcf":{"n":"Wholegrain bread","a":8,"u":"unit","p":"Freyas Bread Soy/linseed 750gm"},"69df02b3-238c-415b-88b1-7316832ce72c":{"n":"Wraps","a":8,"u":"unit","p":"Farrahs Wraps Spinach 450gm"},"3a4ccf73-9127-4b12-8bc3-f502a26280ed":{"n":"Buns","a":8,"u":"unit"},"7a3f1753-0691-40e9-82f1-0d3c859df8ec":{"n":"Baking paper","a":9,"u":"unit","p":"Armada Baking Paper 50m"},"127b79c2-2304-4317-ae06-6ba651776bcc":{"n":"Dog roll","a":9,"u":"unit","p":"Butch White Label 2kg"},"aefc1bfe-050d-46c9-95d5-afbe0cadc08a":{"n":"Aluminium foil","a":9,"u":"unit","p":"Essentials Alum Foil Embossed 10mx30cm"},"24551901-9987-4dc5-a92c-18f3eb4c515d":{"n":"Ham","a":1,"u":"g","p":"Woolworths Free Farmed Champagne Ham Sliced"},"451b4855-f011-4885-bad6-75a046b85822":{"n":"Burger buns","a":1,"u":"unit"},"39e0f1dd-fbc1-43ea-9f5c-8c1a6da29b50":{"n":"Cat food","a":9,"u":"unit"},"c382741c-dc60-4971-b081-3f98df34fc60":{"n":"Dish wash","a":9,"u":"unit"},"26bb06c6-536b-4b23-a9a7-f8f1e58a9edb":{"n":"Flowers","a":9,"u":"unit"},"71b95334-2cad-4e7f-a3ec-ae30ff066b60":{"n":"Adult toothpaste","a":10,"u":"unit"},"ebe5cf56-8c67-44b7-ab85-7d8e6823d160":{"n":"Pink salmon (canned)","a":4,"u":"g","p":"Ocean Blue Salmon Cooking Pieces 125g"},"4e74a101-a2ed-4fb0-99c3-284c52d10ff1":{"n":"Peanut butter","a":3,"u":"unit","p":"Fix & Fogg PB Smooth Dbl Trouble 750g"},"071e0887-b947-4586-ae23-159328115883":{"n":"Pork shoulder","a":7,"u":"g","p":"WW Free Farmed NZ Pork Rump Steak"},"9ce0ff04-1af4-4baf-a3e4-62baa50ad9f9":{"n":"Gluten-free bread","a":2,"u":"unit","p":"Gerry's Super Bread Low Carb High Protein Keto 570g"},"25eb32a5-21c1-4a05-82ce-4e14f0be63cb":{"n":"Prawns","a":1,"u":"g"},"2990e6c4-7075-4d2f-b74d-0b37bf140861":{"n":"Leftover pork","a":7,"u":"g","l":1,"from":"f21423b1-c9ec-41d1-be12-522beefff696"},"f374959f-c80d-43ba-9c26-dcc061c58ee7":{"n":"Leftover tomato sauce","a":4,"u":"g","l":1},"ab134716-2359-4552-a915-8ef95a15140d":{"n":"Oranges","a":0,"u":"unit","p":"Orange Navel"},"be028a49-276e-43cb-9e9e-3fea796fba4b":{"n":"Purple kumara","a":0,"u":"g"},"a9ac87d9-a9db-43af-9ed4-5a6b4d4322f9":{"n":"Seasonal fruit","a":0,"u":"unit","p":"Feijoa Loose Medium"},"2c419578-9ae0-47c8-a3f4-5bc8b19bacc5":{"n":"Strawberries","a":0,"u":"punnet"},"0a9a0f65-c261-4b6e-812a-a728c67cd0d4":{"n":"Chicken thighs (bone-in)","a":7,"u":"g"},"abf834ca-3117-48a3-9cc6-55e813189c3d":{"n":"Bacon","a":7,"u":"piece","p":"WW Bacon Streaky Honey 250g"},"8f69d8bb-0987-4f5c-b3eb-db570bb091d9":{"n":"Cooked chicken meat","a":7,"u":"cup"},"c358fb8a-0176-4d37-8ad6-2ae14e222ab6":{"n":"Lamb chops","a":7,"u":"piece","p":"WW Lamb Gourmet Hind Shanks"},"616514d1-2934-495b-8e95-31cc701d6089":{"n":"Onion","a":0,"u":"unit"},"c408ecfe-2a01-4717-85e3-f3b29554077a":{"n":"Potatoes","a":0,"u":"g","p":"Pukekohe Agria Straight Cut 1kg"},"af8986b4-3942-45fd-b043-1a8bf9ce5171":{"n":"Cucumber","a":0,"u":"sticks","p":"Cucumber Telegraph"},"8876baa3-dd61-489a-902c-a9e7bc8a6320":{"n":"Capsicum","a":0,"u":"unit"},"bdc896d0-12cb-46a6-b36f-385badae5fa6":{"n":"Carrots","a":0,"u":"g","p":"Carrot Cd 1.5kg"},"89957462-2ee2-4b93-bdcc-4ea9047814b8":{"n":"Pork loin","a":7,"u":"piece","p":"WW Free Farmed Pork Fillet Whole"},"7adab3a7-2b06-44e4-bb71-1c02a2c7b0a9":{"n":"Mushrooms","a":0,"u":"g","p":"WW Mushrooms Swiss Brown 400g"},"fb82994f-94b5-453a-bfde-697dbf07517e":{"n":"Garlic","a":0,"u":"cloves"},"7c6c5f73-5ddc-4dc7-9943-20ff9e53b41d":{"n":"Lettuce","a":0,"u":"leaves","p":"Lettuce Butter"},"bc4df447-698e-405b-a3a4-4cb7caed5103":{"n":"Tomato (big)","a":0,"u":"unit"},"a4743f42-a194-4ae4-bd30-b4c1b8a06b3f":{"n":"Lamb shoulder chops","a":7,"u":"piece","p":"WW Lamb Gourmet Hind Shanks"},"4f2bd583-a0c2-44f6-8f09-81fafde7eabc":{"n":"Pork","a":7,"u":"g","p":"WW Free Farmed NZ Pork Rump Steak"},"278e83bd-828d-4eb2-bd53-8bda1502bbfc":{"n":"Pork shoulder","a":7,"u":"g","p":"WW Free Farmed NZ Pork Rump Steak"},"0cef603d-492f-4fb7-abed-9330f345b56c":{"n":"Salami sticks","a":7,"u":"unit","p":"Beehive Chorizo Sticks 150g"},"932871ae-69b8-4385-97aa-13a202d719ec":{"n":"Gherkins","a":3,"u":"slice"},"55e56ed8-5818-4573-8214-bcab2299ef7f":{"n":"Taco kit","a":3,"u":"unit"},"80ebbc1c-70b8-44b5-a64e-8faf82aeb5aa":{"n":"Eggs (mixed grade)","a":3,"u":"unit","p":"Macro Free Range MixedGrade Eggs 12pk"},"4bd4d42e-b616-41d9-a330-5de552c82d21":{"n":"Bowtie Pasta","a":3,"u":"cup"},"94d2c849-6e4e-4618-a40a-a65335c42cbc":{"n":"Pizza bases (GF)","a":3,"u":"unit","p":"Turkish Pizza Bases 450g"},"efe674b9-9e75-4c70-a27e-28514fd6a552":{"n":"Sundried tomatoes","a":3,"u":"g"},"a8db6014-584b-46bd-bc33-cfddc040cca4":{"n":"Pork mince","a":7,"u":"g","p":"Woolworths NZ Pork Mince Free Farmed 13% Fat Tray 500g"},"4fbe1bef-3bab-49b2-869c-6c5595f01c4c":{"n":"Black beans","a":4,"u":"can"},"a34ebc7f-aa7d-48d5-bda5-a757bcc32c9f":{"n":"Butter beans","a":4,"u":"can"},"00ab19d0-de84-4cbc-9838-2dd6fd3eab7c":{"n":"Chickpeas","a":4,"u":"can","p":"WW Chickpeas NAS 420g"},"40aa6841-d4c1-4f83-9720-ac97ed5d2d2d":{"n":"Olives","a":4,"u":"cup","p":"Sun Harvest Olives Pitted Black 450Gm"},"7d28698a-0a87-44af-95f0-ccc1a561a6da":{"n":"Pasatta","a":4,"u":"ml"},"cb12c77e-9cc9-42d3-a017-2cb8a80aa8ba":{"n":"Tomato paste","a":4,"u":"g","p":"Essentials Tomato Paste 170g"},"d804f7b3-38d3-4249-9770-b5a6e783f28a":{"n":"Avocado","a":0,"u":"unit","p":"Avocado Hass"},"42f10cc4-a694-4b90-ae32-22f5dd082ef9":{"n":"Baby tomatoes","a":0,"u":"punnet"},"9f797ef9-9b30-426f-9cb7-dbf3ce8c2690":{"n":"Bananas","a":0,"u":"unit","p":"Banana Cavendish"},"1871541a-f6c6-48b4-90e9-1b423cf4bf0a":{"n":"Blueberries","a":0,"u":"punnet"},"3edb738e-e303-466e-a2fc-db6bf62b2890":{"n":"Mango","a":0,"u":"unit"},"9355b122-7854-4bed-b52b-aeee0a472c86":{"n":"Lamb mince","a":7,"u":"g","p":"WW Lamb Gourmet Hind Shanks"},"b42f61e1-6f24-43bf-becc-42ed1c785918":{"n":"Salmon fillet","a":7,"u":"g","p":"Ocean Blue Salmon Cooking Pieces 125g"},"f081d782-17df-4a22-899f-9e1e6bd9e8b7":{"n":"Lamb leg steak","a":7,"u":"piece","p":"WW Lamb Gourmet Hind Shanks"},"fd020a66-f27c-445f-a122-b1ab14c12755":{"n":"Chilli beans","a":4,"u":"can","p":"Watties Mild Chilli Beans 420gm"},"103950ec-95cc-4a7d-a2cd-57a8dd4fce90":{"n":"Chicken breast","a":7,"u":"g","p":"WW Chicken Breast Bl/Sl Small"},"991d0124-4aa4-4f36-9048-013ea7ddf8a8":{"n":"Burger patties","a":7,"u":"unit"},"59101b22-8947-4d17-8dd3-589ec6bcadba":{"n":"Whole chicken","a":7,"u":"kg","p":"Macro Free Range Chicken Whole"},"e75fc269-5723-4772-aba0-d8869e1ac558":{"n":"Chicken drumsticks","a":7,"u":"piece"},"11c816ed-3674-42ae-b771-42db51ef5f03":{"n":"Chicken pieces","a":7,"u":"g","p":"Rangitikei Korean Style Chicken 400g"},"c91956c9-5569-4d75-b459-2260a0446ab3":{"n":"Chorizo","a":7,"u":"g","p":"Beehive Chorizo Sticks 150g"},"77f44c1e-0445-4ee0-b7f0-0aa3eea0e379":{"n":"Fettuccini (dried)","a":3,"u":"handful"},"29b4f127-cc3c-46fa-990a-42ba1108de57":{"n":"Honey","a":3,"u":"tsp"},"16629e6c-83e8-4402-9d7a-a690d9bc9f0f":{"n":"Pepper","a":3,"u":"sprinkle","s":1},"b2746a7a-c13e-4b93-b815-cb994e6d5940":{"n":"Nachos","a":3,"u":"g","p":"Mexicano Corn Chips Tasty Salsa 300g"},"36759044-9f60-4fd8-994f-47bba6eef47d":{"n":"Spaghetti (dried)","a":3,"u":"handful"},"9010cdaa-fac0-49ca-86ac-2c221aa8984c":{"n":"Burger sauce","a":3,"u":"unit","s":1},"d1b4b54d-96af-4690-83f5-f2319ed87d12":{"n":"Oregano","a":3,"u":"sprinkle","s":1},"a91633a4-a6e2-4c5d-a9ae-c2c682247020":{"n":"Flour","a":3,"u":"cup","s":1},"d5e358e8-44d0-4e60-974a-fc0957de5a51":{"n":"Sausages","a":7,"u":"unit","p":"Hellers Venison Sausage 6pk"},"f70150ef-c15d-45e3-81cf-be1701f2f71f":{"n":"Rice","a":3,"u":"cup","p":"SunRice Brown Medium Grain Rice 2kg"},"f7023f05-ad96-4865-b9e7-dc263499a463":{"n":"Chicken stock","a":3,"u":"cube","p":"Massel Chicken Style S/R Stk Cubes 105g","s":1},"5c686b7e-3ebf-4559-8f43-8042d6bb671f":{"n":"Chilli powder","a":3,"u":"tsp","s":1},"a8dac52a-268b-484a-a66b-498eadbce532":{"n":"Dijon mustard","a":3,"u":"tsp","s":1},"cb859df6-853b-48ee-bef7-d435d5482e60":{"n":"Dill (dried)","a":3,"u":"sprinkle","s":1},"d5619acf-8447-413e-aeeb-7a218759b8cb":{"n":"Mayonnaise","a":3,"u":"tbsp","p":"Heinz Original Mayonnaise 500ml","s":1},"8913328f-8bee-4005-b211-bd336d01e158":{"n":"Olive oil","a":3,"u":"splash","s":1},"b75aeadb-fc8a-45e9-b861-e39858e4bccd":{"n":"Thyme","a":3,"u":"sprinkle","s":1},"7fe0ed2a-ff09-4c46-b5db-1160bef5234b":{"n":"Vegetta","a":3,"u":"g","s":1},"f294965a-1aae-4d2c-8523-0b8147fa9cdf":{"n":"Wholegrain mustard","a":3,"u":"tsp","s":1},"7547d300-51af-4421-9f0d-ef7c63a97088":{"n":"Salt","a":3,"u":"sprinkle","s":1},"4a63cd54-e8f7-4bc0-87ee-c7866d8ede17":{"n":"Bay leaves","a":3,"u":"sprinkle","s":1},"23afee95-a509-422d-bb54-9f3603a663ea":{"n":"Anchovies","a":4,"u":"g"},"6371faa0-d0e6-44d8-a27b-30140a8b24e6":{"n":"Mixed herbs","a":3,"u":"tsp","s":1},"437f479f-9d19-4526-bdd9-2de2279bf196":{"n":"Smoked Paprika","a":3,"u":"tsp","s":1},"52a6d866-27c1-4505-a969-4199512ed1ff":{"n":"Kalamata olives","a":4,"u":"unit","p":"Sun Harvest Olives Pitted Black 450Gm"},"0bbd8c05-cd43-4051-a5ab-e0d6f1491c73":{"n":"Rolled oats","a":5,"u":"cup"},"f54a625c-b9df-4c07-921a-ec449bbb5d0a":{"n":"Chia seeds","a":3,"u":"tbsp","p":"Macro Chia Seeds Black 350g"},"414bdc2c-2968-4057-9c23-92c513627288":{"n":"Corn thins","a":3,"u":"unit","p":"RF Corn Thins Sour Cream & Chive 125g"},"4522f3a7-0de2-4bec-bfed-cd6ca4db6631":{"n":"Curry","a":3,"u":"tsp","p":"LKK Ready Sauce for Thai Green Curry 120g","s":1},"67bd8bbf-2531-498f-9a27-8a3a5588f681":{"n":"Dried chilli flakes","a":3,"u":"tsp","s":1},"210c3c07-c45b-4e3c-9bf5-92d9d51cfd25":{"n":"Jam","a":3,"u":"unit","p":"Barker's Jam Strawberry 455g"},"7f55ebd6-611b-408a-885a-d82785dff854":{"n":"Lasagne sheets","a":3,"u":"unit"},"40a938e5-d800-46d6-82da-289ad5b8a4f3":{"n":"Lentils","a":3,"u":"cup"},"c5a2d266-2dc4-4039-856f-0f2006af3962":{"n":"Miso soup","a":3,"u":"unit"},"2e3eb60b-72b0-41f0-88ff-46cd60c42c41":{"n":"Mustard powder","a":3,"u":"tsp","s":1},"384d6e10-d1f7-4353-be59-29c549a190b4":{"n":"Noodles","a":3,"u":"handful","p":"Indomie Mi Goreng BBQ Chicken 65g x 5pk"},"b70f1216-297c-461e-83de-529337ae87c3":{"n":"Nutmeg","a":3,"u":"sprinkle","s":1},"c7c0380c-87e9-483f-a66c-582a4d1f2d6b":{"n":"Bars","a":5,"u":"bar","p":"N&N Protn Nut Bars Dark Choc Cacao 5Pk"},"4c568994-34f9-455b-957c-76727082f3bb":{"n":"Cassava chips","a":3,"u":"g","p":"Snackachangi Chips Prawn Cocktail 150g"},"5a58e1e6-c78d-4e3b-ac5b-964350dfdb0d":{"n":"Paprika","a":3,"u":"tsp","s":1},"93db75e8-005b-4e09-8ede-9a812d871fc5":{"n":"Pecans","a":3,"u":"g","p":"Macro CB Pecans 70g"},"031e9f0a-c07e-4da4-b4dc-ca491abb0da3":{"n":"Pickles","a":3,"u":"unit"},"258b742e-243f-4386-9096-ef31f68e6cbf":{"n":"Popcorn","a":3,"u":"g","p":"Pop N Good Popping Corn 500gm"},"3f12c483-b15b-484e-95de-ca9c87a23986":{"n":"Quinoa","a":3,"u":"cup"},"65055618-512c-48ae-83d1-e97ea7ce526a":{"n":"Rosemary","a":3,"u":"sprinkle","s":1},"7caf3086-4927-4e05-a133-5acd162ad9a4":{"n":"Red wine","a":6,"u":"bottle"},"fe004b8a-d8f1-44fe-be95-1f6f10d05f16":{"n":"Big tuna","a":4,"u":"can","p":"WW Tuna Tomato & Basil 95g"},"b2bee90d-5e83-4417-9643-13bc7b98a57b":{"n":"Coconut milk","a":4,"u":"can","p":"Ayam 100% Natural Coconut Milk 270ml"},"53271522-5f97-44f0-b39e-30540b143714":{"n":"Kidney beans","a":4,"u":"can"},"cc7ed507-3c53-451c-ac5f-0f17d4f25d83":{"n":"Coffee bags","a":3,"u":"unit"},"98b7d93e-f4de-44c2-b0cc-67342d333fa3":{"n":"Ratatouille","a":4,"u":"can"},"c211ee1b-ec78-4a4b-af89-555c28978612":{"n":"Coffee beans","a":3,"u":"g","p":"Hummingbird H/Select Beans 200g"},"f7beedbe-d24c-44d1-a779-51fa58949b80":{"n":"Granola","a":5,"u":"cup","p":"Orchard Valley Almd Cashew Granola 300g"},"f985e8a2-16b5-478c-b139-597c2ddb7017":{"n":"Kids cereal","a":5,"u":"unit","p":"Hubbard Cluster Crispy Flakes Very Berry 475g"},"9c12d127-2dc2-4963-93c1-93d44366411f":{"n":"Kimchi","a":11,"u":"unit"},"23d9e53f-058d-4160-8e79-06a663cc8ebb":{"n":"Cheese","a":11,"u":"g","p":"Puhoi Cheese Double Cream 220g"},"69904451-8102-43f9-b306-b5f8ffb1cbb6":{"n":"Sour cream","a":11,"u":"tbsp"},"19650ee8-0a72-49e3-93bc-94963ef765a9":{"n":"Greek yoghurt","a":11,"u":"tbsp","p":"De Winkel Plain Unsweet 1kg"},"6b2b618c-3cfc-495b-9c70-be2c206e97ee":{"n":"Lime juice","a":11,"u":"ml"},"041de177-2ce8-4bc4-833b-79d4629a4795":{"n":"Hummus","a":11,"u":"unit","p":"Lisas Dip Hummus Capsicum 200g"},"c7e67313-af57-46f2-aaf6-1e421de556c0":{"n":"Pizza bases","a":11,"u":"unit","p":"Turkish Pizza Bases 450g"},"98d1cfd4-4095-417d-b693-a501ba7fd27a":{"n":"Salami","a":11,"u":"g","p":"Verkerks Danish Salami 100g"},"7622378f-20f4-4239-8b7e-3230b9d5d52c":{"n":"Butter","a":11,"u":"g","p":"Anchor Zero Lacta 500g"},"8be698bd-ee1c-47e5-b4b9-0cd80054c163":{"n":"Soy whipped cream","a":11,"u":"ml"},"7ef4ecf2-4107-45c8-847f-789a9987914e":{"n":"Frozen dumplings","a":12,"u":"unit"},"8ff37ce9-d477-4e94-b210-8289f3b5d753":{"n":"Frozen peas","a":12,"u":"cup","p":"WW Frozen Peas 1kg"},"3c4a3070-751f-4276-ae98-0fe5aaf1e4c2":{"n":"Yoghurt","a":11,"u":"cup","p":"Chobani Greek Yogurt Pot Strawberry 160g"},"575046e9-30bb-478d-b01b-6ae7d1b71f50":{"n":"Dairy milk","a":11,"u":"ml","p":"LRC Jersey Milk Non Homogenised 1.5L"},"390bbc50-eb67-49bf-b02c-91c77e6e5ae1":{"n":"Dark chocolate","a":3,"u":"g","p":"Whittakers Blk B/sweet Dark 250g"},"b5d8ea81-4a69-408f-bd8e-f0760140b3bc":{"n":"Tinned plum tomatoes","a":4,"u":"can","p":"Essentials Tomatoes Diced 400g"},"46033691-698c-4a5a-8cf1-2b8e15f79e83":{"n":"Tuna","a":4,"u":"can","p":"WW Tuna Tomato & Basil 95g"},"f9ecf1d6-c881-49b4-a6dd-94571f541baa":{"n":"Frozen prawns (uncooked)","a":1,"u":"g"},"a419ad7a-6c3d-47d8-81c3-f81f7efbf582":{"n":"Kitchen bags","a":9,"u":"unit"},"6059e283-258c-4337-a5f5-bd2ecf6553ed":{"n":"Packing tape","a":9,"u":"unit","p":"Sellotape Economy Parcel Tape 48mm"},"97003ce2-93f4-45ea-aebd-8a99487dc50c":{"n":"Paper towel","a":9,"u":"unit","p":"Strike Paper Towel Double Length 2pk"},"f596cc28-1f66-4a3c-bc17-e4cb4f92ff2a":{"n":"Sellotape","a":9,"u":"unit","p":"Sellotape Economy Parcel Tape 48mm"},"61c2dd51-58cb-4c8f-9cc6-a63b9b33e443":{"n":"Tissues","a":9,"u":"unit","p":"Kleenex Everyday 2Ply Facial Tiss 200s"},"ba343e26-f886-48b5-840f-d5bbd4fc5fd9":{"n":"Vanish oxy action spray","a":9,"u":"unit"},"d33e4ae5-b6ed-4681-b4a7-b95a32056792":{"n":"Vermox","a":10,"u":"unit"},"7c119f86-eb69-47fa-bd74-5e5aa1ad821d":{"n":"Gluten free tortillas","a":2,"u":"unit","p":"Farrahs Low Carb Ultra Keto Taco 8pk"},"0696c4a4-11df-40d2-8cc7-8ca7471b7549":{"n":"Toilet paper","a":9,"u":"unit","p":"Paseo Luxury Toilet Paper 24pk 3 Ply Value Pack"},"d427aacf-488a-46ed-a342-8d8a126fa8eb":{"n":"Sugar","a":3,"u":"tsp","s":1},"25d341d3-02ba-45fc-a58b-0be7866adce5":{"n":"Marjoram","a":3,"u":"tbsp","s":1},"934ca8b1-071f-4f03-a652-ba1a6fde0cfa":{"n":"Black pepper","a":3,"u":"tsp","s":1},"55d5798a-0553-4c8f-a5bb-2a92913cb45f":{"n":"Passata","a":4,"u":"g"},"60757b95-27ea-43bf-8f7c-7898e5ab6b69":{"n":"Cinnamon","a":3,"u":"tsp","s":1},"b1f57dc9-b0ef-41d2-8bc0-dd40a9931a05":{"n":"Apple sauce","a":3,"u":"unit","p":"Woolworths Apple Sauce No Added Sugar"},"dae02abe-dc6a-4b6e-a47b-e07f41548200":{"n":"Antiperspirant spray","a":10,"u":"unit","p":"Rexona Men Advanced Protection Deodorant Antiperspirant Sport"},"c146c45e-0ded-4fe3-a76b-0842199a5483":{"n":"Chargrilled hummus","a":1,"u":"unit"},"58d2d5c6-1ade-4c3e-b7b0-ca19fbc82f8b":{"n":"Dog worming tablets","a":10,"u":"unit"},"b0d535e6-1d44-4170-898e-25a4de074b0e":{"n":"Garlic powder","a":3,"u":"tsp","s":1},"0c2727e6-b41f-4b21-8c69-b2a148d9603f":{"n":"Foaming face wash","a":10,"u":"unit"},"c2e9bafd-8651-4223-84ba-690cdf12fb8f":{"n":"Dish sponge refill","a":9,"u":"unit"},"57639cf4-9af6-4c2f-a2b5-763b047472dd":{"n":"Kitchen cloths","a":9,"u":"unit"},"dea7391d-9143-4379-b710-8e03a194792d":{"n":"Kumara","a":0,"u":"unit"},"afeb9bfa-ab9f-4e65-9f15-b025cfeab264":{"n":"Coconut cream","a":4,"u":"ml","p":"Ceres Organics Organic Coconut Cream 400ml"},"21bb061a-0fd3-471e-91d7-1308dc3ccf70":{"n":"Green-lipped mussels","a":1,"u":"kg"},"10e6c7d0-9740-42b0-a6e9-b2b4abf6a527":{"n":"Fresh fish","a":1,"u":"g","p":"Woolworths Fresh NZ Fish Fillets Gurnard Kumukumu"},"284d9e7f-e8d5-46a5-8555-21fe0f46935e":{"n":"Shallots","a":0,"u":"unit"},"d5fbf40f-4613-4433-9dfe-fc51f7bc4b3e":{"n":"Coriander (dried)","a":3,"u":"tsp","s":1},"5cc72d0a-33dc-4dac-b23a-052239568078":{"n":"Cloves","a":3,"u":"unit","s":1},"ca32e60b-f22e-4e88-a0fb-afd9978bda48":{"n":"Soda water","a":6,"u":"bottle"},"81711ff0-5fee-41e0-8348-749ad2a4edca":{"n":"Ground ginger","a":3,"u":"tsp","s":1},"81287ff1-fdfc-4b04-8755-e6850f3da671":{"n":"Garam masala","a":3,"u":"tsp","s":1},"6c9265c8-039c-49ab-bfa1-298acff889f4":{"n":"Curry powder","a":3,"u":"tsp","s":1},"165cb3c6-2bb5-476a-a565-316e260dc6a5":{"n":"White wine","a":6,"u":"ml"},"019551a0-7796-49e5-bb3a-4f4d9e6738f8":{"n":"Cream","a":11,"u":"ml"},"3378693b-5d97-4471-af4a-4cc90d34d81f":{"n":"Parmesan","a":11,"u":"g"},"69ae34d6-cf6f-48f0-a334-8a671f4ec2ce":{"n":"Crusty bread","a":8,"u":"loaf"}},"recipes":{"4a520ebb-fc20-4a65-8618-6f999521e8a7":{"n":"Baked salmon","sv":4,"k":"dinner","pr":"sea","i":[{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6"},{"g":"23195e13-77df-458a-9332-8ea303692260"},{"g":"75032e9a-20d6-4833-8ed3-af196c4d1dd8"},{"g":"3f12c483-b15b-484e-95de-ca9c87a23986"},{"g":"b42f61e1-6f24-43bf-becc-42ed1c785918"}]},"b7c4f6fd-aab1-4ca7-8e54-70f3f9013841":{"n":"BBQ 1","sv":4,"k":"dinner","pr":"lamb","i":[{"g":"3a3c567d-10cd-4944-9cdb-7bd4258e9981","q":2.0},{"g":"f081d782-17df-4a22-899f-9e1e6bd9e8b7","q":2.0},{"g":"c408ecfe-2a01-4717-85e3-f3b29554077a","q":500.0},{"g":"d5e358e8-44d0-4e60-974a-fc0957de5a51","q":6.0}],"d":"BBQ 1 meal plan: lamb, sausages, corn cobs, potatoes."},"418efdfd-63fa-48e2-a599-f8f469ae941c":{"n":"Burgers","sv":4,"k":"dinner","pr":"pork","i":[{"g":"3a4ccf73-9127-4b12-8bc3-f502a26280ed"},{"g":"41914a59-aa2e-4a98-adce-fd6b8ff4e0c1"},{"g":"7c6c5f73-5ddc-4dc7-9943-20ff9e53b41d"},{"g":"031e9f0a-c07e-4da4-b4dc-ca491abb0da3"},{"g":"a8db6014-584b-46bd-bc33-cfddc040cca4","q":500.0},{"g":"bc4df447-698e-405b-a3a4-4cb7caed5103"}]},"62f3c4b3-eb98-453a-8087-49c123828499":{"n":"Chicken and mushroom skewers","sv":4,"k":"dinner","pr":"chicken","i":[{"g":"8876baa3-dd61-489a-902c-a9e7bc8a6320","q":1.0},{"g":"103950ec-95cc-4a7d-a2cd-57a8dd4fce90","q":500.0},{"g":"7adab3a7-2b06-44e4-bb71-1c02a2c7b0a9","q":300.0}]},"a2aa5b15-a70d-4884-8d10-baafdd70665e":{"n":"Chicken rice","sv":4,"k":"dinner","pr":"chicken","i":[{"g":"4fbe1bef-3bab-49b2-869c-6c5595f01c4c","q":0.5},{"g":"00ab19d0-de84-4cbc-9838-2dd6fd3eab7c","q":0.5},{"g":"8f69d8bb-0987-4f5c-b3eb-db570bb091d9","q":2.0},{"g":"23195e13-77df-458a-9332-8ea303692260","q":0.5},{"g":"40aa6841-d4c1-4f83-9720-ac97ed5d2d2d","q":0.5},{"g":"616514d1-2934-495b-8e95-31cc701d6089","q":1.0},{"g":"f70150ef-c15d-45e3-81cf-be1701f2f71f","q":1.5},{"g":"efe674b9-9e75-4c70-a27e-28514fd6a552","q":50.0}]},"75020e80-2008-4e3e-b8b1-6cc18e57fdaa":{"n":"Chilli con carne","sv":4,"k":"dinner","pr":"pork","i":[{"g":"4fbe1bef-3bab-49b2-869c-6c5595f01c4c"},{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6"},{"g":"23195e13-77df-458a-9332-8ea303692260"},{"g":"7d28698a-0a87-44af-95f0-ccc1a561a6da"},{"g":"a8db6014-584b-46bd-bc33-cfddc040cca4","q":500.0}]},"e72fb623-ec8a-41d5-87b2-c14aac9ab825":{"n":"Coleslaw","sv":4,"k":"side","pr":"veg","i":[{"g":"09f19c4a-7821-4fab-bb52-b023fe18abda","q":3.0},{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6","q":150.0},{"g":"d5619acf-8447-413e-aeeb-7a218759b8cb","q":3.0},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088"},{"g":"16629e6c-83e8-4402-9d7a-a690d9bc9f0f"}],"d":"Standalone coleslaw recipe: shredded cabbage and carrot dressed with mayonnaise, salt and pepper."},"a0953f65-3754-4ef4-b5da-5a670c145722":{"n":"Creamy garlic mussels with broccoli and crusty bread","sv":4,"k":"dinner","pr":"sea","i":[{"g":"21bb061a-0fd3-471e-91d7-1308dc3ccf70","q":2.0,"t":"in shell","h":"Mussels"},{"g":"7622378f-20f4-4239-8b7e-3230b9d5d52c","q":30.0,"h":"Mussels"},{"g":"284d9e7f-e8d5-46a5-8555-21fe0f46935e","q":2.0,"t":"finely chopped","h":"Mussels"},{"g":"fb82994f-94b5-453a-bfde-697dbf07517e","q":6.0,"t":"finely chopped","h":"Mussels"},{"g":"165cb3c6-2bb5-476a-a565-316e260dc6a5","q":125.0,"t":"dry, or stock","h":"Mussels"},{"g":"019551a0-7796-49e5-bb3a-4f4d9e6738f8","q":250.0,"h":"Mussels"},{"g":"3378693b-5d97-4471-af4a-4cc90d34d81f","q":40.0,"t":"finely grated","h":"Mussels"},{"g":"934ca8b1-071f-4f03-a652-ba1a6fde0cfa","q":0.5,"h":"Mussels"},{"g":"0fac1197-f3c5-48ba-ba0a-be5a3469a200","q":3.0,"u":"tbsp","t":"chopped","h":"Mussels"},{"g":"3ad8f66a-09e5-4686-8ea1-5c51036f4474","q":1.0,"t":"wedges","h":"Mussels"},{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":2.0,"t":"cut into florets","h":"Sides"},{"g":"69ae34d6-cf6f-48f0-a334-8a671f4ec2ce","q":1.0,"t":"baguette or ciabatta","h":"Sides"}],"d":"Green-lipped mussels in a garlic, white wine and parmesan cream sauce, with steamed broccoli and crusty bread. About 25 minutes.","m":"1. **Prep the mussels.** Scrub the mussels and pull off the beards. Throw out any with cracked shells or that stay open when tapped.\n2. **Warm the bread.** Heat the oven to 180°C and warm the bread for 8 to 10 min while you cook.\n3. **Soften the aromatics.** Melt the butter in a large lidded pot on medium. Cook the shallots 3 min until soft, then add the garlic for 1 min without browning.\n4. **Steam the mussels.** Pour in the wine, turn the heat to high and add the mussels. Cover and cook 4 to 5 min, shaking the pot once or twice, until the shells open.\n5. **Steam the broccoli.** Meanwhile, steam the broccoli 4 to 5 min until just tender.\n6. **Make the sauce.** Lift the mussels into a warm bowl with a slotted spoon, discarding any that stay shut. Add the cream to the pot juices and simmer 3 min until slightly thickened.\n7. **Finish.** Off the heat, stir in the parmesan and pepper. Taste before salting, as the mussel juices are already salty. Return the mussels, toss through the sauce and scatter with parsley.\n8. **Serve.** Serve in bowls with the broccoli, lemon wedges and sliced bread for mopping up the sauce.\n\n# Notes\n\n- Low-carb serves skip the bread and take extra broccoli.\n- Lifting the mussels out before reducing the cream stops them going rubbery.\n- About 500 g of mussels in the shell per person."},"6eab4c3d-6374-4fe4-b1f2-ca558441c213":{"n":"Crock pot Mediterranean chicken with olives","sv":4,"k":"dinner","pr":"chicken","i":[{"g":"0a9a0f65-c261-4b6e-812a-a728c67cd0d4","q":860.0,"t":"4 cutlets"},{"g":"5a58e1e6-c78d-4e3b-ac5b-964350dfdb0d","q":1.5,"t":"smoked or sweet"},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088","q":0.75,"u":"tsp"},{"g":"934ca8b1-071f-4f03-a652-ba1a6fde0cfa","q":0.5},{"g":"8913328f-8bee-4005-b211-bd336d01e158","q":1.0,"u":"tbsp"},{"g":"284d9e7f-e8d5-46a5-8555-21fe0f46935e","q":4.0,"t":"halved"},{"g":"fb82994f-94b5-453a-bfde-697dbf07517e","q":5.0,"t":"smashed"},{"g":"382ab270-73f6-430c-9033-9d6bd040abef","q":1.0,"t":"400 g"},{"g":"d1b4b54d-96af-4690-83f5-f2319ed87d12","q":1.0,"u":"tsp"},{"g":"b75aeadb-fc8a-45e9-b861-e39858e4bccd","q":0.75,"u":"tsp"},{"g":"65055618-512c-48ae-83d1-e97ea7ce526a","q":0.5,"u":"tsp","t":"crushed"},{"g":"67bd8bbf-2531-498f-9a27-8a3a5588f681","q":1.0,"u":"pinch","o":1},{"g":"40aa6841-d4c1-4f83-9720-ac97ed5d2d2d","q":0.5},{"g":"3ad8f66a-09e5-4686-8ea1-5c51036f4474","q":0.5,"t":"juiced, or a splash of vinegar"}],"d":"Bone-in chicken thighs braised in garlicky tomato, olives and herbs. About 15 min prep, then 3 hours on HIGH. Low carb, mild.","m":"1. **Season.** Rub the chicken with paprika, salt and pepper.\n2. **Sear skin side.** Heat the oil in a pan and brown the chicken skin-side down until golden, about 7 min. Skip if pushed for time, but it's the biggest flavour win.\n3. **Build the base.** Tip shallots, garlic, tomatoes, oregano, thyme, rosemary and chilli into the crock pot. Stir. Sit the chicken on top, skin up, so the skin stays out of the sauce.\n4. **Cook.** Lid on, HIGH for 2.5 to 3 hours, until the meat pulls easily from the bone.\n5. **Add olives.** Stir into the sauce for the last 20 min so they warm through without going mushy.\n6. **Finish.** Stir in the lemon juice and taste for salt. For crisp skin, 3 min under a hot grill.\n\n# Notes\n\n- No extra liquid needed.\n- If the sauce is thin, lift the chicken out and run the crock pot uncovered on HIGH for 15 min.\n- One cutlet each is a modest serve for four adults. Go generous on cauliflower mash or green beans to keep it low carb.","tg":["slow"]},"ef39a3a1-dadf-44bd-b0ae-77f162865aab":{"n":"Dad's potato bake","sv":4,"k":"side","pr":"veg","i":[{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6","q":4.0,"odd":1},{"g":"23d9e53f-058d-4160-8e79-06a663cc8ebb","q":200.0},{"g":"de176dc5-faff-45e8-b165-67ccc20bae89","q":10.0,"odd":1},{"g":"c408ecfe-2a01-4717-85e3-f3b29554077a","q":4.0,"odd":1},{"g":"ed19fe6f-9eac-4c62-ac8c-dc696e7b698b","q":250.0}]},"ca271c36-e5fc-44d4-9616-a262bc23aa92":{"n":"Dumplings and brocolli","sv":4,"k":"dinner","pr":"veg","i":[{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":1.0},{"g":"7ef4ecf2-4107-45c8-847f-789a9987914e","q":1.0}]},"fa398496-120d-416a-873e-1601c1a6b88a":{"n":"Dumplings with chicken pieces and broccoli","sv":4,"k":"dinner","pr":"chicken","i":[{"g":"7ef4ecf2-4107-45c8-847f-789a9987914e","q":24.0},{"g":"11c816ed-3674-42ae-b771-42db51ef5f03","q":400.0,"t":"frozen"},{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":1.0}]},"b4174881-f836-4188-a8c9-1b1514fc2254":{"n":"Easy nachos","sv":4,"k":"dinner","pr":"pork","i":[{"g":"23d9e53f-058d-4160-8e79-06a663cc8ebb","q":200.0},{"g":"fd020a66-f27c-445f-a122-b1ab14c12755","q":2.0},{"g":"b2746a7a-c13e-4b93-b815-cb994e6d5940","q":500.0},{"g":"a8db6014-584b-46bd-bc33-cfddc040cca4"}]},"4c79e2da-72fc-4865-9929-5e1fec6b0788":{"n":"Egg Pie","sv":4,"k":"dinner","pr":"veg","i":[{"g":"abf834ca-3117-48a3-9cc6-55e813189c3d","q":4.0},{"g":"7832b660-d7ed-40ae-a4c1-3142f7ee8e5a","q":250.0,"odd":1},{"g":"23d9e53f-058d-4160-8e79-06a663cc8ebb","q":200.0},{"g":"1c8159e7-4d00-4493-9f92-e69eaaeb337c","q":1.0},{"g":"80ebbc1c-70b8-44b5-a64e-8faf82aeb5aa","q":10.0},{"g":"7adab3a7-2b06-44e4-bb71-1c02a2c7b0a9","q":300.0},{"g":"40aa6841-d4c1-4f83-9720-ac97ed5d2d2d","q":1.0},{"g":"616514d1-2934-495b-8e95-31cc701d6089","q":1.0},{"g":"ed19fe6f-9eac-4c62-ac8c-dc696e7b698b","q":1.0,"odd":1},{"g":"7fe0ed2a-ff09-4c46-b5db-1160bef5234b","q":2.0}]},"b3502e58-4d2d-4881-8d9c-3d5a372384e4":{"n":"Fish pie a la Tata","sv":4,"k":"dinner","pr":"sea","i":[{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":0.5},{"g":"a8dac52a-268b-484a-a66b-498eadbce532","q":1.0},{"g":"cb859df6-853b-48ee-bef7-d435d5482e60","q":1.0},{"g":"23195e13-77df-458a-9332-8ea303692260","q":1.0},{"g":"8ff37ce9-d477-4e94-b210-8289f3b5d753","q":1.0},{"g":"d5619acf-8447-413e-aeeb-7a218759b8cb","q":2.0},{"g":"8913328f-8bee-4005-b211-bd336d01e158","q":1.0},{"g":"16629e6c-83e8-4402-9d7a-a690d9bc9f0f","q":1.0},{"g":"ebe5cf56-8c67-44b7-ab85-7d8e6823d160","q":400.0},{"g":"c408ecfe-2a01-4717-85e3-f3b29554077a","q":4.0,"odd":1},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088","q":1.0},{"g":"ed19fe6f-9eac-4c62-ac8c-dc696e7b698b","q":1.0,"odd":1},{"g":"f294965a-1aae-4d2c-8523-0b8147fa9cdf","q":1.0}]},"0b71af2a-9950-44f9-b414-32fb4759163f":{"n":"Fish with frozen chips and carrot-apple surówka","sv":4,"k":"dinner","pr":"sea","i":[{"g":"10e6c7d0-9740-42b0-a6e9-b2b4abf6a527","q":700.0},{"g":"79ec44f4-2390-40b2-87f9-da195b02d514","q":1000.0},{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6"},{"g":"d3afd343-3d24-4b35-884b-39b7b7fc85d1"},{"g":"8913328f-8bee-4005-b211-bd336d01e158","q":1.0},{"g":"d427aacf-488a-46ed-a342-8d8a126fa8eb","q":1.0}]},"e86b107e-45cb-41ab-9865-ac3fb5ffa1a8":{"n":"Gołąbki","sv":4,"k":"dinner","pr":"pork","i":[{"g":"09f19c4a-7821-4fab-bb52-b023fe18abda","q":1.0,"u":"whole"},{"g":"a8db6014-584b-46bd-bc33-cfddc040cca4","q":500.0},{"g":"f70150ef-c15d-45e3-81cf-be1701f2f71f","q":1.0},{"g":"616514d1-2934-495b-8e95-31cc701d6089","q":1.0},{"g":"fb82994f-94b5-453a-bfde-697dbf07517e","q":2.0},{"g":"7622378f-20f4-4239-8b7e-3230b9d5d52c","q":1.0,"u":"tbsp"},{"g":"0fac1197-f3c5-48ba-ba0a-be5a3469a200","q":3.0,"u":"tbsp"},{"g":"25d341d3-02ba-45fc-a58b-0be7866adce5","q":1.0},{"g":"5a58e1e6-c78d-4e3b-ac5b-964350dfdb0d","q":0.5},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088","q":1.0,"u":"tsp"},{"g":"934ca8b1-071f-4f03-a652-ba1a6fde0cfa","q":0.5},{"g":"f7023f05-ad96-4865-b9e7-dc263499a463","q":1.0},{"g":"382ab270-73f6-430c-9033-9d6bd040abef","q":1.0},{"g":"55d5798a-0553-4c8f-a5bb-2a92913cb45f","q":700.0}],"m":"Makes about 10-12 goląbki (one per cabbage leaf).\n\n1. **Prep the cabbage.** Core the cabbage (cut a cone around the stem with a paring knife, ~5cm deep, twist out). Place core-side down in a large pot of simmering water. As outer leaves soften, peel them off and lay on a tea towel. Trim the thick rib at the base of each leaf. Keep the dark outer leaves for lining the pot.\n2. **Cook the rice halfway.** Cook for about half the time on the packet — semi-cooked only, it finishes inside the rolls. Cool.\n3. **Sauté the onion.** Finely chop the onion and sauté in the butter until translucent. Cool slightly.\n4. **Make the filling.** Combine pork mince, cooled rice, sautéed onion, crushed garlic, chopped parsley, marjoram, paprika, salt and black pepper. Mix well with your hands.\n5. **Roll.** A generous spoonful of filling on each leaf, fold the sides in, roll up firmly like a burrito. One parcel per leaf. Place seam-side down.\n6. **Line the pot.** Line a heavy pot or Dutch oven with the reserved dark outer cabbage leaves to stop the rolls catching and to keep steam in.\n7. **Pack and cook.** Pack the rolls in seam-side down, snugly in layers. Dissolve the stock cube in ~2 cups boiling water, then pour over with the tin of chopped tomatoes and all the passata. Liquid should nearly cover the rolls. Bring to a gentle simmer on the stove, cover, then either simmer 45-50 min or transfer to a 180°C oven for 60 min.\n8. **Finish the sauce.** Lift the rolls out carefully with a slotted spoon onto a warm plate; cover loosely with foil. Put the pot back on medium-high heat, uncovered, and let the cooking liquid bubble and reduce for 5-10 minutes until glossy and spoonable, stirring occasionally so the bottom doesn't catch. Taste and adjust seasoning.\n9. **Serve.** Plate over mashed potatoes with the sauce spooned over."},"cf99d6a1-a42c-48ad-8fb9-9b48494bef45":{"n":"Ham and cheese sandwiches","sv":4,"k":"lunch","pr":"pork","i":[{"g":"23d9e53f-058d-4160-8e79-06a663cc8ebb","q":1.0,"odd":1},{"g":"24551901-9987-4dc5-a92c-18f3eb4c515d","q":1.0,"odd":1},{"g":"fe637f8f-f8ac-4731-a81a-25282ff92fcf","q":2.0}]},"7f99fd7c-6e28-4f7d-b8d6-22cad0406839":{"n":"Lamb stew (x2 batches)","sv":4,"k":"dinner","pr":"lamb","i":[{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6"},{"g":"a4743f42-a194-4ae4-bd30-b4c1b8a06b3f","q":4.0},{"g":"40a938e5-d800-46d6-82da-289ad5b8a4f3"},{"g":"c408ecfe-2a01-4717-85e3-f3b29554077a"},{"g":"be028a49-276e-43cb-9e9e-3fea796fba4b","q":1.0,"odd":1}],"b":2,"tg":["slow"]},"cc4b1b6b-00ba-444d-a4ac-e80e57183258":{"n":"Lasagne from leftover pork shoulder","sv":4,"k":"dinner","pr":"pork","i":[{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":1.0},{"g":"7622378f-20f4-4239-8b7e-3230b9d5d52c","q":50.0},{"g":"23d9e53f-058d-4160-8e79-06a663cc8ebb"},{"g":"7f55ebd6-611b-408a-885a-d82785dff854","q":12.0},{"g":"a91633a4-a6e2-4c5d-a9ae-c2c682247020","q":50.0},{"g":"2990e6c4-7075-4d2f-b74d-0b37bf140861","q":500.0},{"g":"f374959f-c80d-43ba-9c26-dcc061c58ee7","q":300.0},{"g":"575046e9-30bb-478d-b01b-6ae7d1b71f50","q":500.0},{"g":"b70f1216-297c-461e-83de-529337ae87c3","q":1.0},{"g":"16629e6c-83e8-4402-9d7a-a690d9bc9f0f"},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088"}]},"68d04f97-bdb1-4b7e-aa69-d44bfbd57a94":{"n":"Lebneh","sv":4,"k":"side","pr":"veg","i":[{"g":"5c686b7e-3ebf-4559-8f43-8042d6bb671f","q":0.5},{"g":"fb82994f-94b5-453a-bfde-697dbf07517e","q":1.0},{"g":"19650ee8-0a72-49e3-93bc-94963ef765a9","q":4.0},{"g":"6b2b618c-3cfc-495b-9c70-be2c206e97ee","q":1.0,"odd":1},{"g":"8913328f-8bee-4005-b211-bd336d01e158","q":2.0},{"g":"3df94db7-d5b3-4f1a-85f9-9442ce57be3f","q":1.0},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088","q":1.0},{"g":"b75aeadb-fc8a-45e9-b861-e39858e4bccd","q":1.0}]},"d55200d4-6492-481b-9145-ceadf24a563c":{"n":"Meatballs with rich tomato sauce","sv":4,"k":"dinner","pr":"lamb","i":[{"g":"1c8159e7-4d00-4493-9f92-e69eaaeb337c","q":1.0},{"g":"9355b122-7854-4bed-b52b-aeee0a472c86","q":500.0},{"g":"7adab3a7-2b06-44e4-bb71-1c02a2c7b0a9","q":250.0},{"g":"616514d1-2934-495b-8e95-31cc701d6089","q":1.0},{"g":"7d28698a-0a87-44af-95f0-ccc1a561a6da","q":700.0},{"g":"36759044-9f60-4fd8-994f-47bba6eef47d","q":1.0}]},"03d5eea3-5886-4c71-ac37-980d7cf40a84":{"n":"Mild chicken, kumara and coconut curry","sv":4,"k":"dinner","pr":"chicken","i":[{"g":"f70150ef-c15d-45e3-81cf-be1701f2f71f","q":2.0,"t":"medium grain white","h":"Rice"},{"g":"8913328f-8bee-4005-b211-bd336d01e158","q":1.0,"u":"tbsp","h":"Curry"},{"g":"616514d1-2934-495b-8e95-31cc701d6089","q":2.0,"t":"diced","h":"Curry"},{"g":"6c9265c8-039c-49ab-bfa1-298acff889f4","q":2.0,"t":"Mrs Rogers","h":"Curry"},{"g":"e0c10600-1a3d-4847-ac54-b20bee399e53","q":1.0,"h":"Curry"},{"g":"d5fbf40f-4613-4433-9dfe-fc51f7bc4b3e","q":1.0,"h":"Curry"},{"g":"b0d535e6-1d44-4170-898e-25a4de074b0e","q":1.0,"h":"Curry"},{"g":"81711ff0-5fee-41e0-8348-749ad2a4edca","q":1.0,"h":"Curry"},{"g":"5a58e1e6-c78d-4e3b-ac5b-964350dfdb0d","q":1.0,"h":"Curry"},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088","q":1.0,"u":"tsp","h":"Curry"},{"g":"dea7391d-9143-4379-b710-8e03a194792d","q":1.0,"t":"peeled, 2cm cubes","h":"Curry"},{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6","q":200.0,"t":"about 2, sliced","h":"Curry"},{"g":"afeb9bfa-ab9f-4e65-9f15-b025cfeab264","q":400.0,"h":"Curry"},{"g":"103950ec-95cc-4a7d-a2cd-57a8dd4fce90","q":650.0,"t":"bite-size pieces","h":"Curry"},{"g":"8876baa3-dd61-489a-902c-a9e7bc8a6320","q":1.0,"t":"chunks","h":"Curry"},{"g":"81287ff1-fdfc-4b04-8755-e6850f3da671","q":1.0,"t":"to finish","h":"Curry"},{"g":"6b2b618c-3cfc-495b-9c70-be2c206e97ee","q":15.0,"t":"or juice of half a lime","h":"Curry"}],"d":"Quick one-pot mild curry with chicken breast, kumara, carrot and capsicum in coconut cream, served on rice. About 35 minutes.","m":"1. **Start the rice.** Rinse the rice and put in a pot with 600 ml water. Bring to the boil, cover, turn to lowest heat and cook 15 min. Turn off and leave covered.\n2. **Soften onions.** Heat the oil in a large pan on medium. Cook the onions 5 min until soft and golden.\n3. **Toast spices.** Add curry powder, cumin, coriander, garlic powder, ginger, paprika and salt. Stir 1 min. Add a splash of water if it sticks.\n4. **Simmer the veg.** Add kumara, carrots, coconut cream and 250 ml water. Bring to a simmer, cover and cook 8 min.\n5. **Add chicken and capsicum.** Stir in and simmer uncovered 10 min until the chicken is cooked through and the sauce thickens.\n6. **Finish.** Off the heat, stir in the garam masala and lime juice. Taste and adjust salt. Serve over the rice.\n\n# Notes\n\n- Taste a pinch of the curry powder first. If it has heat, use 1 tsp and 2 tsp each of cumin and coriander.\n- 650 g chicken is about two large breasts.","tg":["one-pot"]},"7c3a381d-f2cc-4fa4-805d-e26fec3b1df4":{"n":"Mr Bakeman spiced lemonade","sv":4,"k":"drink","pr":"veg","i":[{"g":"d427aacf-488a-46ed-a342-8d8a126fa8eb","h":"Syrup"},{"g":"3ad8f66a-09e5-4686-8ea1-5c51036f4474","t":"fresh, sliced","h":"Syrup"},{"g":"60757b95-27ea-43bf-8f7c-7898e5ab6b69","h":"Spice mix tea bag"},{"g":"b70f1216-297c-461e-83de-529337ae87c3","h":"Spice mix tea bag"},{"g":"d5fbf40f-4613-4433-9dfe-fc51f7bc4b3e","h":"Spice mix tea bag"},{"g":"5cc72d0a-33dc-4dac-b23a-052239568078","h":"Spice mix tea bag"},{"g":"ca32e60b-f22e-4e88-a0fb-afd9978bda48","o":1,"t":"or water","h":"To serve"}],"d":"Lemon sugar syrup brewed with a spice tea bag, served with soda water or water, hot or cold.","m":"1. **Brew the syrup.** Brew sugar syrup with the sliced lemons and the spice mix tea bag.\n2. **Serve.** Ladle spoons of syrup into a glass to taste. Top with soda water or water, hot or cold."},"4047e157-fcfd-44db-a12f-f7957f1108de":{"n":"One-pot mild Shin noodles with chicken","sv":4,"k":"dinner","pr":"chicken","i":[{"g":"6be80510-276b-473c-a6eb-21fa69fcc8b2","q":4.0,"h":"Noodles"},{"g":"103950ec-95cc-4a7d-a2cd-57a8dd4fce90","q":400.0,"t":"stir fry strips","h":"Chicken"},{"g":"09f19c4a-7821-4fab-bb52-b023fe18abda","q":0.25,"u":"head","t":"large, roughly chopped","h":"Veg"},{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":1.0,"t":"medium, small florets","h":"Veg"},{"g":"616514d1-2934-495b-8e95-31cc701d6089","q":1.0,"t":"sliced, or 2 shallots","h":"Veg"},{"g":"8876baa3-dd61-489a-902c-a9e7bc8a6320","q":1.0,"t":"red, sliced","h":"Veg"},{"g":"23195e13-77df-458a-9332-8ea303692260","q":1.0,"h":"Veg"},{"g":"75032e9a-20d6-4833-8ed3-af196c4d1dd8","q":1.0,"t":"frozen, shelled","h":"Veg"},{"g":"f7023f05-ad96-4865-b9e7-dc263499a463","q":1.0,"o":1,"t":"or veg stock","h":"Optional"},{"g":"73a44e0a-028e-4ede-a663-4c5decbb8442","q":1.0,"o":1,"h":"Optional"},{"g":"80ebbc1c-70b8-44b5-a64e-8faf82aeb5aa","q":4.0,"u":"whole","o":1,"h":"Optional"}],"d":"Family-friendly Shin Ramyun with the heat turned right down, chicken and a pile of veg. One pot, about 15 minutes.","x":["2 l water","1/2 soup powder sachet _(from the noodle packs)_"],"m":"1. **Boil the water.** Bring 2 l water to the boil in your biggest pot. Chop the veg while you wait.\n2. **Cook the chicken and fresh veg.** Add the chicken strips, stirring to separate them, then the cabbage, broccoli, onion and capsicum, plus the dried vegetable sachets from all the packs (these are not spicy). Bring back to the boil and cook 2 min.\n3. **Add noodles and frozen veg.** Add the noodle blocks, corn and edamame. Boil 4 min, loosening the noodles with a fork as they soften. If using eggs, crack them in for the last 2 min and leave them alone to poach.\n4. **Check the chicken.** Cut the biggest piece in half. It should be white all the way through. If not, boil 1 to 2 min more.\n5. **Season gently.** Take off the heat. Stir in half of one soup sachet, then crumble in the stock cube and add the soy sauce to make up the flavour. Taste, and add a little more soup powder only if everyone is coping.\n6. **Serve.** Ladle into bowls. Put the leftover soup sachets on the table so anyone who wants heat can stir extra into their own bowl.\n\n# Notes\n\n- Half a sachet across the whole pot gives flavour with barely any heat. One full sachet is mild-to-medium.\n- If a bowl is still too spicy, a slice of cheese melted on top or a splash of milk calms it down.\n- Veg amounts are flexible, so use what you have.\n- With chicken in the pot the eggs are less needed, so skip them if you like.","tg":["one-pot"]},"89880bea-290b-4b7d-9798-f09bf3a8c186":{"n":"Pikelets","sv":4,"k":"breakfast","pr":"veg","i":[{"g":"80ebbc1c-70b8-44b5-a64e-8faf82aeb5aa","q":1.0},{"g":"a91633a4-a6e2-4c5d-a9ae-c2c682247020","q":1.0},{"g":"575046e9-30bb-478d-b01b-6ae7d1b71f50","q":1.0,"odd":1},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088","q":1.0}]},"58b409fd-4534-4267-b248-f08bdad8c5bd":{"n":"Pizza","sv":4,"k":"dinner","pr":"veg","i":[{"g":"23afee95-a509-422d-bb54-9f3603a663ea"},{"g":"aadaf8ce-e32f-4849-86ac-f475e1d27179"},{"g":"c7e67313-af57-46f2-aaf6-1e421de556c0"},{"g":"23d9e53f-058d-4160-8e79-06a663cc8ebb"},{"g":"94d2c849-6e4e-4618-a40a-a65335c42cbc"},{"g":"40aa6841-d4c1-4f83-9720-ac97ed5d2d2d"},{"g":"98d1cfd4-4095-417d-b693-a501ba7fd27a"},{"g":"cb12c77e-9cc9-42d3-a017-2cb8a80aa8ba"}]},"dbeedae5-2033-478c-b89d-37eec2d1d6aa":{"n":"Pork loin with buckwheat and mushroom sauce","sv":4,"k":"dinner","pr":"pork","i":[{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":1.0},{"g":"7d10cf11-9af4-4791-b44c-dd583d6b46b8","q":1.0},{"g":"7adab3a7-2b06-44e4-bb71-1c02a2c7b0a9","q":250.0},{"g":"0fac1197-f3c5-48ba-ba0a-be5a3469a200","q":1.0},{"g":"89957462-2ee2-4b93-bdcc-4ea9047814b8","q":2.0},{"g":"ed19fe6f-9eac-4c62-ac8c-dc696e7b698b","q":125.0}]},"3a368ea6-e838-44d8-83ad-8a25b0992fbd":{"n":"Porridge","sv":4,"k":"breakfast","pr":"veg","i":[{"g":"29b4f127-cc3c-46fa-990a-42ba1108de57","q":1.0},{"g":"575046e9-30bb-478d-b01b-6ae7d1b71f50","q":1.0,"odd":1},{"g":"0bbd8c05-cd43-4051-a5ab-e0d6f1491c73","q":0.5}]},"a70f9b6c-eaa6-46a4-9d4f-f1bc6ad896dd":{"n":"Prawn curry rice","sv":4,"k":"dinner","pr":"sea","i":[{"g":"abf834ca-3117-48a3-9cc6-55e813189c3d","o":1},{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","o":1},{"g":"4522f3a7-0de2-4bec-bfed-cd6ca4db6631"},{"g":"fb82994f-94b5-453a-bfde-697dbf07517e"},{"g":"616514d1-2934-495b-8e95-31cc701d6089","o":1},{"g":"25eb32a5-21c1-4a05-82ce-4e14f0be63cb"}]},"cc47cf54-40e2-4246-90e9-36bab8660361":{"n":"Prawn fettuccini","sv":4,"k":"dinner","pr":"sea","i":[{"g":"abf834ca-3117-48a3-9cc6-55e813189c3d","o":1},{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","o":1},{"g":"77f44c1e-0445-4ee0-b7f0-0aa3eea0e379"},{"g":"fb82994f-94b5-453a-bfde-697dbf07517e"},{"g":"616514d1-2934-495b-8e95-31cc701d6089","o":1},{"g":"25eb32a5-21c1-4a05-82ce-4e14f0be63cb"}]},"dc93844f-3c40-4244-bd52-1aaefab9795b":{"n":"Roast chicken","sv":4,"k":"dinner","pr":"chicken","i":[{"g":"09f19c4a-7821-4fab-bb52-b023fe18abda"},{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6"},{"g":"7832b660-d7ed-40ae-a4c1-3142f7ee8e5a"},{"g":"e75fc269-5723-4772-aba0-d8869e1ac558","o":1,"t":"instead of whole chicken"},{"g":"c408ecfe-2a01-4717-85e3-f3b29554077a"},{"g":"59101b22-8947-4d17-8dd3-589ec6bcadba"}]},"15b783b5-966d-462a-89da-5b6595caaa07":{"n":"Salmon pasta","sv":4,"k":"dinner","pr":"sea","i":[{"g":"4bd4d42e-b616-41d9-a330-5de552c82d21","q":1.0},{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":1.0},{"g":"b42f61e1-6f24-43bf-becc-42ed1c785918","q":500.0}]},"0cee71fe-c750-4901-9af9-f4dac2ad9486":{"n":"Saucy chicken thighs on rice","sv":4,"k":"dinner","pr":"chicken","i":[{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6","q":2.0,"odd":1},{"g":"0a9a0f65-c261-4b6e-812a-a728c67cd0d4","q":700.0},{"g":"23195e13-77df-458a-9332-8ea303692260","q":0.5},{"g":"8ff37ce9-d477-4e94-b210-8289f3b5d753","q":0.5},{"g":"f70150ef-c15d-45e3-81cf-be1701f2f71f","q":1.0}]},"bb3b9975-7dd3-45af-b94d-e8508c022aab":{"n":"Sausages with coleslaw and potatoes","sv":4,"k":"dinner","pr":"pork","i":[{"g":"d5e358e8-44d0-4e60-974a-fc0957de5a51","q":6.0},{"g":"c408ecfe-2a01-4717-85e3-f3b29554077a","q":800.0},{"g":"09f19c4a-7821-4fab-bb52-b023fe18abda","q":3.0},{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6","q":150.0},{"g":"d5619acf-8447-413e-aeeb-7a218759b8cb","q":3.0},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088"},{"g":"16629e6c-83e8-4402-9d7a-a690d9bc9f0f"}],"in":["e72fb623-ec8a-41d5-87b2-c14aac9ab825"]},"ade42bd9-1912-492f-999d-5d82c98a60be":{"n":"Sausies and veg","sv":4,"k":"dinner","pr":"pork","i":[{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":1.0},{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6","q":400.0},{"g":"23195e13-77df-458a-9332-8ea303692260","q":1.0},{"g":"f70150ef-c15d-45e3-81cf-be1701f2f71f","q":1.0},{"g":"d5e358e8-44d0-4e60-974a-fc0957de5a51","q":12.0}]},"b5e33c0e-0fed-48c0-a029-bd3d649c4f8e":{"n":"Shepherds pie","sv":4,"k":"dinner","pr":"pork","i":[{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6"},{"g":"23195e13-77df-458a-9332-8ea303692260"},{"g":"fb82994f-94b5-453a-bfde-697dbf07517e"},{"g":"53271522-5f97-44f0-b39e-30540b143714"},{"g":"616514d1-2934-495b-8e95-31cc701d6089"},{"g":"7d28698a-0a87-44af-95f0-ccc1a561a6da","q":2.0,"odd":1},{"g":"8ff37ce9-d477-4e94-b210-8289f3b5d753"},{"g":"a8db6014-584b-46bd-bc33-cfddc040cca4","q":1.0,"odd":1}]},"15f2d2cc-9554-4203-b153-31ca437479fd":{"n":"Simple Crudités","sv":4,"k":"side","pr":"veg","i":[{"g":"af8986b4-3942-45fd-b043-1a8bf9ce5171","q":4.0},{"g":"041de177-2ce8-4bc4-833b-79d4629a4795","q":2.0},{"g":"52a6d866-27c1-4505-a969-4199512ed1ff","q":6.0},{"g":"9c12d127-2dc2-4963-93c1-93d44366411f","q":2.0}]},"f21423b1-c9ec-41d1-be12-522beefff696":{"n":"Slow cooked pork shoulder","sv":4,"k":"dinner","pr":"pork","i":[{"g":"4a63cd54-e8f7-4bc0-87ee-c7866d8ede17","q":5.0},{"g":"67bd8bbf-2531-498f-9a27-8a3a5588f681","q":1.0},{"g":"d1b4b54d-96af-4690-83f5-f2319ed87d12","q":0.5},{"g":"8913328f-8bee-4005-b211-bd336d01e158"},{"g":"fb82994f-94b5-453a-bfde-697dbf07517e","q":6.0},{"g":"fda8035a-fef7-422c-ac8b-b4056e3106f9","q":2.0},{"g":"b5d8ea81-4a69-408f-bd8e-f0760140b3bc","q":5.0},{"g":"16629e6c-83e8-4402-9d7a-a690d9bc9f0f"},{"g":"278e83bd-828d-4eb2-bd53-8bda1502bbfc","q":2.5,"odd":1},{"g":"c408ecfe-2a01-4717-85e3-f3b29554077a"},{"g":"65055618-512c-48ae-83d1-e97ea7ce526a","q":4.0},{"g":"7547d300-51af-4421-9f0d-ef7c63a97088"}],"tg":["slow"]},"2b9e8712-4959-4fdd-b2fa-a68c921a0232":{"n":"Spaghetti","sv":4,"k":"dinner","pr":"pork","i":[{"g":"bdc896d0-12cb-46a6-b36f-385badae5fa6"},{"g":"7d28698a-0a87-44af-95f0-ccc1a561a6da"},{"g":"a8db6014-584b-46bd-bc33-cfddc040cca4","q":500.0},{"g":"36759044-9f60-4fd8-994f-47bba6eef47d"}]},"30b31acd-635d-44f2-9fff-c36497bcc382":{"n":"Tacos","sv":4,"k":"dinner","pr":"pork","i":[{"g":"8876baa3-dd61-489a-902c-a9e7bc8a6320"},{"g":"7c119f86-eb69-47fa-bd74-5e5aa1ad821d"},{"g":"7c6c5f73-5ddc-4dc7-9943-20ff9e53b41d"},{"g":"a8db6014-584b-46bd-bc33-cfddc040cca4","q":500.0},{"g":"55e56ed8-5818-4573-8214-bcab2299ef7f"},{"g":"42f10cc4-a694-4b90-ae32-22f5dd082ef9"}]},"d9938032-610b-4a0b-bc7d-392ca4564635":{"n":"Tomato pasta","sv":4,"k":"dinner","pr":"veg","i":[{"g":"4bd4d42e-b616-41d9-a330-5de552c82d21","q":1.0},{"g":"a34ebc7f-aa7d-48d5-bda5-a757bcc32c9f","q":0.5},{"g":"1c8159e7-4d00-4493-9f92-e69eaaeb337c","q":1.0},{"g":"23195e13-77df-458a-9332-8ea303692260","q":1.0},{"g":"7adab3a7-2b06-44e4-bb71-1c02a2c7b0a9","q":250.0},{"g":"7d28698a-0a87-44af-95f0-ccc1a561a6da","q":700.0}]},"08d029f2-b5c0-4df6-8a2b-a954eac01be9":{"n":"Veg stew","sv":4,"k":"dinner","pr":"veg","i":[{"g":"7832b660-d7ed-40ae-a4c1-3142f7ee8e5a"},{"g":"00ab19d0-de84-4cbc-9838-2dd6fd3eab7c","q":2.0},{"g":"382ab270-73f6-430c-9033-9d6bd040abef"},{"g":"c91956c9-5569-4d75-b459-2260a0446ab3","q":2.0,"o":1,"t":"or pork","odd":1},{"g":"fb82994f-94b5-453a-bfde-697dbf07517e"},{"g":"40a938e5-d800-46d6-82da-289ad5b8a4f3"},{"g":"fda8035a-fef7-422c-ac8b-b4056e3106f9"},{"g":"5a58e1e6-c78d-4e3b-ac5b-964350dfdb0d"},{"g":"4f2bd583-a0c2-44f6-8f09-81fafde7eabc","o":1,"t":"or chorizo"},{"g":"c408ecfe-2a01-4717-85e3-f3b29554077a"}],"tg":["slow"]}},"plans":[{"start":"2026-05-23","days":["0b71af2a-9950-44f9-b414-32fb4759163f","e86b107e-45cb-41ab-9865-ac3fb5ffa1a8","2b9e8712-4959-4fdd-b2fa-a68c921a0232","cc47cf54-40e2-4246-90e9-36bab8660361","b4174881-f836-4188-a8c9-1b1514fc2254","dbeedae5-2033-478c-b89d-37eec2d1d6aa","30b31acd-635d-44f2-9fff-c36497bcc382"]},{"start":"2026-05-30","days":["0b71af2a-9950-44f9-b414-32fb4759163f","dc93844f-3c40-4244-bd52-1aaefab9795b","cc47cf54-40e2-4246-90e9-36bab8660361","2b9e8712-4959-4fdd-b2fa-a68c921a0232","b4174881-f836-4188-a8c9-1b1514fc2254","ca271c36-e5fc-44d4-9616-a262bc23aa92","58b409fd-4534-4267-b248-f08bdad8c5bd"]},{"start":"2026-06-06","days":["418efdfd-63fa-48e2-a599-f8f469ae941c","dc93844f-3c40-4244-bd52-1aaefab9795b","bb3b9975-7dd3-45af-b94d-e8508c022aab","a2aa5b15-a70d-4884-8d10-baafdd70665e","b4174881-f836-4188-a8c9-1b1514fc2254","fa398496-120d-416a-873e-1601c1a6b88a","0b71af2a-9950-44f9-b414-32fb4759163f"]}],"everyWeek":[{"g":"a9ac87d9-a9db-43af-9ed4-5a6b4d4322f9","q":600.0,"u":"g","t":"feijoas"},{"g":"bd99220e-ae34-425c-afd7-b53638d906de","q":10.0},{"g":"ab134716-2359-4552-a915-8ef95a15140d"},{"g":"9f797ef9-9b30-426f-9cb7-dbf3ce8c2690","q":10.0},{"g":"d804f7b3-38d3-4249-9770-b5a6e783f28a","q":2.0},{"g":"c13c1d5f-d5ef-4a54-9cd0-285f6601c681","q":1.0,"u":"head"},{"g":"24551901-9987-4dc5-a92c-18f3eb4c515d","q":400.0,"u":"g"},{"g":"0cef603d-492f-4fb7-abed-9330f345b56c","q":2.0,"u":"packs"},{"g":"f7beedbe-d24c-44d1-a779-51fa58949b80","q":3.0,"t":"a mixture of the products"},{"g":"f985e8a2-16b5-478c-b139-597c2ddb7017","q":2.0},{"g":"c7c0380c-87e9-483f-a66c-582a4d1f2d6b"},{"g":"56f11249-91a4-4e3e-9ab9-19b053cfdea5","q":4.0},{"g":"c211ee1b-ec78-4a4b-af89-555c28978612"},{"g":"80ebbc1c-70b8-44b5-a64e-8faf82aeb5aa"},{"g":"46033691-698c-4a5a-8cf1-2b8e15f79e83"},{"g":"414bdc2c-2968-4057-9c23-92c513627288"},{"g":"fd020a66-f27c-445f-a122-b1ab14c12755","q":2.0,"u":"can"},{"g":"b2746a7a-c13e-4b93-b815-cb994e6d5940","q":500.0,"u":"g"},{"g":"127b79c2-2304-4317-ae06-6ba651776bcc"},{"g":"575046e9-30bb-478d-b01b-6ae7d1b71f50","q":1.0},{"g":"ed19fe6f-9eac-4c62-ac8c-dc696e7b698b"},{"g":"d0519e61-61ad-4b60-b8c7-92259b531dcb","q":2.0},{"g":"23d9e53f-058d-4160-8e79-06a663cc8ebb","q":2.0},{"g":"3c4a3070-751f-4276-ae98-0fe5aaf1e4c2"},{"g":"0ddc539d-ff0d-4766-a88c-4d6a2189f608"},{"g":"96a9cd61-2f0c-49f7-a029-25d33b9e74c3"},{"g":"9ce0ff04-1af4-4baf-a3e4-62baa50ad9f9","t":"keto variant"},{"g":"011385cd-2f3a-44a2-8270-80b2fdec5fd2","q":4.0},{"g":"3edb738e-e303-466e-a2fc-db6bf62b2890"},{"g":"11c816ed-3674-42ae-b771-42db51ef5f03","q":2.0},{"g":"1871541a-f6c6-48b4-90e9-1b423cf4bf0a"},{"g":"2c419578-9ae0-47c8-a3f4-5bc8b19bacc5"},{"g":"69df02b3-238c-415b-88b1-7316832ce72c"}],"iris":{"base":"https://iris-uat.chrisbarlow.nz","mealPlansSet":"f2e064ad-9e08-4420-9c1f-3c3747b1c728","shoppingListsSet":"9ed26bcc-6077-41f0-b173-a72bee1a54f1","recipesSet":"ef57c7e7-666f-4d78-b156-c9892d533fad","shoppingListProfile":"f0f2f8e8-345c-590b-a4f3-7ed320a9c8da"}}</script>
+<script type="module">
+// Dinner Deck engine. Pure functions over the deck data; no DOM.
+// A week is { start:'YYYY-MM-DD' (a Saturday), days:[7 x slot], extras:[recipeId], adds:[{g,q}], everyWeek:bool }
+// A slot is { r: recipeId|null, d: diners|null, lock: bool, second: bool } (second = second night of a batch cook).
+
+const DAY_NAMES = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const DAY_SHORT = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const COUNTABLE = new Set(['can', 'head', 'whole', 'punnet', 'bottle', 'loaf', 'packs']);
+const PLURAL = { can: 'cans', head: 'heads', cup: 'cups', piece: 'pieces', punnet: 'punnets', bottle: 'bottles', loaf: 'loaves', bar: 'bars', slice: 'slices', cube: 'cubes', handful: 'handfuls', splash: 'splashes', sprinkle: 'sprinkles', pinch: 'pinches', pack: 'packs' };
+
+function emptyWeek(start) {
+  return { start, days: Array.from({ length: 7 }, () => ({ r: null, d: null, lock: false, second: false })), extras: [], adds: [], everyWeek: true };
+}
+
+// The Saturday that starts the shopping week containing or following `date`.
+function weekStart(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + ((6 - d.getUTCDay() + 7) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+function dayDate(start, i) {
+  const d = new Date(start + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + i);
+  return d;
+}
+
+function rangeLabel(start) {
+  const a = dayDate(start, 0), b = dayDate(start, 6);
+  const sameMonth = a.getUTCMonth() === b.getUTCMonth();
+  return `${a.getUTCDate()}${sameMonth ? '' : ' ' + MONTHS[a.getUTCMonth()]} to ${b.getUTCDate()} ${MONTHS[b.getUTCMonth()]} ${b.getUTCFullYear()}`;
+}
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const FRACTIONS = [[0.25, '¼'], [0.5, '½'], [0.75, '¾'], [1 / 3, '⅓'], [2 / 3, '⅔']];
+function formatNumber(q) {
+  const whole = Math.floor(q + 1e-9), rest = q - whole;
+  if (rest < 0.01) return String(whole);
+  const f = FRACTIONS.find(([v]) => Math.abs(v - rest) < 0.02);
+  if (f) return (whole ? whole : '') + f[1];
+  return String(Math.round(q * 10) / 10);
+}
+
+function formatQty(q, unit) {
+  if (unit === 'g' && q >= 1000) return formatNumber(q / 1000) + ' kg';
+  if (unit === 'ml' && q >= 1000) return formatNumber(q / 1000) + ' l';
+  const n = formatNumber(q);
+  if (!unit || unit === 'unit') return n;
+  if (unit === 'g' || unit === 'ml' || unit === 'kg' || unit === 'tsp' || unit === 'tbsp') return `${n} ${unit}`;
+  return `${n} ${q > 1 && PLURAL[unit] ? PLURAL[unit] : unit}`;
+}
+
+function makeEngine(deck) {
+  const G = deck.groceries, R = deck.recipes;
+  const recipeIds = Object.keys(R);
+  const dinners = recipeIds.filter((id) => R[id].k === 'dinner');
+  const unitOf = (ing) => ing.u || G[ing.g].u;
+  // What a recipe needs from another night: groceries named "Leftover ..." whose source recipe is known.
+  const needs = {};
+  for (const id of recipeIds) {
+    const from = R[id].i.map((ing) => G[ing.g].from).filter(Boolean);
+    if (from.length) needs[id] = from[0];
+  }
+  const feeds = {};
+  for (const [id, src] of Object.entries(needs)) feeds[src] = id;
+
+  // ---- habits, from the saved plans -------------------------------------------------------
+  const planned = {}, byDay = DAY_NAMES.map(() => ({}));
+  for (const p of deck.plans) p.days.forEach((id, i) => {
+    planned[id] = (planned[id] || 0) + 1;
+    byDay[i][id] = (byDay[i][id] || 0) + 1;
+  });
+  const habits = byDay.map((counts, day) => {
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    return top && top[1] >= 2 ? { day, r: top[0], n: top[1], of: deck.plans.length } : null;
+  });
+
+  // ---- the shop ---------------------------------------------------------------------------
+  function sources(week) {
+    const out = [];
+    const onBoard = new Set(week.days.filter((s) => s.r && !s.second).map((s) => s.r));
+    week.days.forEach((slot, day) => {
+      if (!slot.r || slot.second || !R[slot.r]) return;
+      const r = R[slot.r];
+      out.push({ key: 'd' + day, day, r: slot.r, label: r.n, scale: (slot.d || r.sv) / r.sv });
+    });
+    week.extras.forEach((id, i) => R[id] && out.push({ key: 'x' + i, day: null, r: id, label: R[id].n, scale: 1 }));
+    return { list: out, onBoard };
+  }
+
+  function shop(week) {
+    const { list, onBoard } = sources(week);
+    const lines = new Map();
+    const line = (g) => {
+      if (!lines.has(g)) lines.set(g, { g, name: G[g].n, aisle: G[g].a, product: G[g].p || '', parts: [], sums: {}, some: false, odd: [], days: [], notes: [] });
+      return lines.get(g);
+    };
+    const fromFridge = [];
+    for (const src of list) {
+      for (const ing of R[src.r].i) {
+        const g = G[ing.g];
+        if (g.l) {
+          const made = g.from && onBoard.has(g.from);
+          fromFridge.push({ g: ing.g, name: g.n, day: src.day, r: src.r, made: !!made, from: g.from || null });
+          continue;
+        }
+        const l = line(ing.g), unit = unitOf(ing);
+        const part = { src: src.key, day: src.day, label: src.label, unit, opt: !!ing.o };
+        if (ing.q != null && !ing.odd) {
+          part.q = ing.q * src.scale;
+          l.sums[unit] = (l.sums[unit] || 0) + part.q;
+        } else {
+          l.some = true;
+          if (ing.odd) l.odd.push(`${src.label} says ${formatQty(ing.q, unit)}`);
+        }
+        if (ing.alt) l.notes.push('or ' + G[ing.alt].n.toLowerCase());
+        l.parts.push(part);
+        if (src.day != null && !l.days.includes(src.day)) l.days.push(src.day);
+      }
+    }
+    for (const l of lines.values()) {
+      l.tier = G[l.g].s ? 'cupboard' : 'meals';
+      l.optional = l.parts.every((p) => p.opt);
+    }
+    if (week.everyWeek) for (const item of deck.everyWeek) {
+      const existed = lines.has(item.g), l = line(item.g);
+      if (!existed) l.tier = 'weekly';
+      l.weekly = { q: item.q ?? null, unit: item.u || '', note: item.t || '' };
+    }
+    for (const add of week.adds) {
+      if (!G[add.g]) continue;
+      const existed = lines.has(add.g), l = line(add.g);
+      if (!existed) l.tier = 'added';
+      l.added = { q: add.q || 1 };
+    }
+    const all = [...lines.values()].sort((a, b) => a.aisle - b.aisle || a.name.localeCompare(b.name));
+    for (const l of all) l.qty = qtyText(l);
+    return { lines: all, fromFridge };
+  }
+
+  // What to show on the list: meal quantities and the every-week amount added together where the units agree.
+  function qtyText(l) {
+    const sums = { ...l.sums };
+    if (l.weekly && l.weekly.q != null) {
+      const u = l.weekly.unit || (G[l.g].u === 'unit' ? 'unit' : '');
+      sums[u] = (sums[u] || 0) + l.weekly.q;
+    }
+    if (l.added) { const u = G[l.g].u === 'unit' ? 'unit' : ''; sums[u] = (sums[u] || 0) + l.added.q; }
+    const bits = Object.entries(sums).map(([u, q]) => (u === '' ? `${formatNumber(q)} ${q === 1 ? 'pack' : 'packs'}` : formatQty(q, u)));
+    if (!bits.length) return '';
+    return bits.join(' + ') + (l.some ? ' + some' : '');
+  }
+
+  // ---- what the list alone hides ----------------------------------------------------------
+  function insights(week, shopResult) {
+    const s = shopResult || shop(week);
+    const mealLines = s.lines.filter((l) => l.tier === 'meals' && l.parts.length);
+    const shared = mealLines.filter((l) => l.days.length >= 2).sort((a, b) => b.days.length - a.days.length || a.name.localeCompare(b.name));
+    const chains = [], warnings = [];
+    week.days.forEach((slot, day) => {
+      if (!slot.r || slot.second) return;
+      const src = needs[slot.r];
+      if (!src) return;
+      const at = week.days.findIndex((x) => x.r === src && !x.second);
+      if (at === -1) warnings.push({ day, r: slot.r, needs: src, why: 'missing' });
+      else if (at > day) warnings.push({ day, r: slot.r, needs: src, why: 'order', at });
+      else chains.push({ from: at, to: day, source: src, r: slot.r });
+    });
+    const batches = [];
+    week.days.forEach((slot, day) => {
+      if (slot.r && !slot.second && R[slot.r].b) {
+        const second = week.days.findIndex((x, i) => i > day && x.second && x.r === slot.r);
+        batches.push({ day, r: slot.r, second });
+      }
+    });
+    const inside = [];
+    week.days.forEach((slot, day) => {
+      if (slot.r && !slot.second) for (const inner of R[slot.r].in || []) inside.push({ day, r: slot.r, inner });
+    });
+    const onBoard = new Set(week.days.map((x) => x.r).filter(Boolean));
+    const loose = [];
+    for (const l of mealLines) {
+      if (l.some) continue;
+      for (const [unit, q] of Object.entries(l.sums)) {
+        if (!COUNTABLE.has(unit)) continue;
+        const left = Math.ceil(q - 1e-9) - q;
+        if (left < 0.2) continue;
+        const uses = dinners.filter((id) => !onBoard.has(id) && !needs[id] && R[id].i.some((ing) => ing.g === l.g && !ing.o));
+        loose.push({ g: l.g, name: l.name, left, unit, uses });
+      }
+    }
+    const habitNotes = [];
+    week.days.forEach((slot, day) => {
+      const h = habits[day];
+      if (h && slot.r === h.r) habitNotes.push({ day, r: h.r, n: h.n, of: h.of, kept: true });
+    });
+    const flagged = s.lines.filter((l) => l.odd.length);
+    return { shared, chains, warnings, batches, inside, loose, habitNotes, flagged, fromFridge: s.fromFridge };
+  }
+
+  function stats(week, shopResult) {
+    const s = shopResult || shop(week);
+    const buy = s.lines.filter((l) => l.tier !== 'cupboard');
+    const meals = s.lines.filter((l) => l.tier === 'meals');
+    // How many lines the meals would need if nothing were shared.
+    const unshared = meals.reduce((n, l) => n + Math.max(1, new Set(l.parts.map((p) => p.src)).size), 0);
+    return { items: buy.length, mealItems: meals.length, saved: unshared - meals.length, aisles: new Set(buy.map((l) => l.aisle)).size, cupboard: s.lines.length - buy.length };
+  }
+
+  // ---- the dealer -------------------------------------------------------------------------
+  const STYLES = { usual: 'The usual', thrifty: 'Thrifty', wild: 'Wildcard' };
+
+  function deal(week, style = 'usual', rng = Math.random) {
+    const locked = week.days.map((s) => (s.lock && s.r ? { ...s } : null));
+    const taken = new Set(locked.filter(Boolean).map((s) => s.r));
+    const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+    let best = null;
+    const tries = 120;
+    for (let t = 0; t < tries; t++) {
+      const days = locked.map((s) => s || { r: null, d: null, lock: false, second: false });
+      const used = new Set(taken);
+      const free = () => days.map((s, i) => (s.r ? -1 : i)).filter((i) => i >= 0);
+      // A leftover chain goes on consecutive days, cook first.
+      const chainSources = Object.keys(feeds).filter((id) => !used.has(id) && !used.has(feeds[id]));
+      if (chainSources.length && rng() < (style === 'thrifty' ? 0.8 : 0.45)) {
+        const src = pick(chainSources);
+        const spots = free().filter((i) => i < 6 && !days[i + 1].r);
+        if (spots.length) {
+          const weekend = spots.filter((i) => i <= 1);
+          const i = weekend.length && rng() < 0.7 ? pick(weekend) : pick(spots);
+          days[i].r = src; days[i + 1].r = feeds[src]; used.add(src); used.add(feeds[src]);
+        }
+      }
+      if (style === 'usual') for (const h of habits) {
+        if (h && !days[h.day].r && !used.has(h.r) && rng() < h.n / h.of) { days[h.day].r = h.r; used.add(h.r); }
+      }
+      for (const i of free()) {
+        if (days[i].r) continue; // taken meanwhile by a second night
+        const pool = dinners.filter((id) => !used.has(id) && !needs[id]);
+        if (!pool.length) break;
+        let id;
+        if (style === 'usual') {
+          const weights = pool.map((p) => 1 + 3 * (planned[p] || 0) + 6 * (byDay[i][p] || 0));
+          let x = rng() * weights.reduce((a, b) => a + b, 0);
+          id = pool.find((p, k) => (x -= weights[k]) < 0);
+        } else if (style === 'wild') {
+          const fresh = pool.filter((p) => !planned[p]);
+          id = pick(fresh.length && rng() < 0.85 ? fresh : pool);
+        } else id = pick(pool);
+        days[i].r = id || pool[0]; used.add(days[i].r);
+        const r = R[days[i].r];
+        if (r.b && rng() < 0.6) { // batch cook: its second night is free
+          const later = free().filter((j) => j > i + 1);
+          if (later.length) { const j = later[0]; days[j] = { r: days[i].r, d: null, lock: false, second: true }; }
+        }
+      }
+      if (style === 'thrifty' && t % 20 === 0) improve(week, days);
+      const candidate = { ...week, days };
+      const score = scoreWeek(candidate, style) + rng() * (style === 'thrifty' ? 0.5 : 3);
+      if (!best || score > best.score) best = { days, score };
+    }
+    const dealt = { ...week, days: best.days };
+    return { week: dealt, why: explain(dealt, style) };
+  }
+
+  // Thrifty only: swap single dinners for ones that shorten the shop, until nothing helps.
+  function improve(week, days) {
+    const fixed = (s) => s.lock || s.second || needs[s.r] || feeds[s.r] || E_R(s.r).b;
+    let now = scoreWeek({ ...week, days }, 'thrifty');
+    for (let pass = 0; pass < 3; pass++) {
+      let changed = false;
+      for (let i = 0; i < 7; i++) {
+        if (!days[i].r || fixed(days[i])) continue;
+        const used = new Set(days.map((s) => s.r));
+        for (const id of dinners) {
+          if (used.has(id) || needs[id] || R[id].b) continue;
+          const old = days[i].r;
+          days[i].r = id;
+          const next = scoreWeek({ ...week, days }, 'thrifty');
+          if (next > now + 1e-9) { now = next; used.delete(old); used.add(id); changed = true; } else days[i].r = old;
+        }
+      }
+      if (!changed) break;
+    }
+  }
+  const E_R = (id) => R[id] || {};
+
+  function scoreWeek(week, style) {
+    let score = 0;
+    const proteins = {};
+    let slow = 0;
+    week.days.forEach((s, i) => {
+      if (!s.r || s.second) return;
+      const r = R[s.r];
+      proteins[r.pr] = (proteins[r.pr] || 0) + 1;
+      if ((r.tg || []).includes('slow')) { slow++; if (i <= 1) score += 2; }
+    });
+    for (const n of Object.values(proteins)) if (n > 2) score -= 8 * (n - 2);
+    if (proteins.sea) score += 3;
+    if (slow > 2) score -= 6 * (slow - 2);
+    const st = stats(week);
+    if (style === 'thrifty') score += st.saved * 4 - st.mealItems;
+    else score += st.saved * 0.8;
+    if (style === 'wild') score += Object.keys(proteins).length * 2;
+    return score;
+  }
+
+  function explain(week, style) {
+    const st = stats(week), ins = insights(week);
+    const bits = [];
+    if (style === 'usual') {
+      const kept = ins.habitNotes.map((h) => `${R[h.r].n.toLowerCase()} on ${DAY_NAMES[h.day]}`);
+      bits.push(kept.length ? `A week like your saved ones: ${kept.slice(0, 2).join(', ')}.` : 'A week weighted toward what you have planned before.');
+    } else if (style === 'thrifty') {
+      bits.push(`Dealt for a short shop: ${st.mealItems} things to buy for seven dinners.`);
+    } else {
+      const fresh = week.days.filter((s) => s.r && !planned[s.r]).length;
+      bits.push(`${fresh} dinners that are in none of your saved plans.`);
+    }
+    if (ins.chains.length) bits.push(`${DAY_NAMES[ins.chains[0].from]}'s ${R[ins.chains[0].source].n.toLowerCase()} becomes ${DAY_NAMES[ins.chains[0].to]}'s lasagne.`);
+    if (st.saved > 0 && style !== 'thrifty') bits.push(`${st.saved} ${st.saved === 1 ? 'item is' : 'items are'} shared between meals.`);
+    else if (st.saved > 0) bits.push(`Sharing saves ${st.saved} ${st.saved === 1 ? 'line' : 'lines'}.`);
+    return bits.join(' ');
+  }
+
+  // ---- placing cards ----------------------------------------------------------------------
+  // Returns a new week. from: {deck:id} | {day:i}; to: {day:i} | {deck:true} | {extras:true}
+  function move(week, from, to) {
+    const w = { ...week, days: week.days.map((s) => ({ ...s })), extras: [...week.extras] };
+    const blank = () => ({ r: null, d: null, lock: false, second: false });
+    const clearSeconds = (id) => w.days.forEach((s, i) => { if (s.second && s.r === id) w.days[i] = blank(); });
+    if (from.day != null && to.day != null) {
+      if (from.day === to.day) return w;
+      [w.days[from.day], w.days[to.day]] = [w.days[to.day], w.days[from.day]];
+      for (const s of w.days) s.lock = false;
+      // A second night that lands before its cook night swaps roles with it.
+      w.days.forEach((s, i) => {
+        if (!s.second) return;
+        const cook = w.days.findIndex((x) => x.r === s.r && !x.second);
+        if (cook > i) { w.days[cook].second = true; s.second = false; }
+        if (cook === -1) s.second = false;
+      });
+    } else if (from.deck && to.day != null) {
+      const old = w.days[to.day];
+      if (old.r && !old.second) clearSeconds(old.r);
+      if (R[from.deck].k !== 'dinner' && R[from.deck].k !== 'side') { if (!w.extras.includes(from.deck)) w.extras.push(from.deck); return w; }
+      const dup = w.days.findIndex((s) => s.r === from.deck && !s.second);
+      if (dup !== -1 && dup !== to.day) { clearSeconds(from.deck); w.days[dup] = blank(); }
+      w.days[to.day] = { r: from.deck, d: null, lock: false, second: false };
+    } else if (from.day != null && to.deck) {
+      const old = w.days[from.day];
+      if (old.r && !old.second) clearSeconds(old.r);
+      w.days[from.day] = blank();
+    } else if (from.deck && to.extras) {
+      if (!w.extras.includes(from.deck)) w.extras.push(from.deck);
+    }
+    return w;
+  }
+
+  function addSecondNight(week, day) {
+    const w = { ...week, days: week.days.map((s) => ({ ...s })) };
+    const id = w.days[day].r;
+    let j = w.days.findIndex((s, i) => i > day + 1 && !s.r);
+    if (j === -1) j = w.days.findIndex((s, i) => i > day && !s.r);
+    if (j === -1) return null;
+    w.days[j] = { r: id, d: null, lock: false, second: true };
+    return w;
+  }
+
+  // ---- week code for the link -------------------------------------------------------------
+  function encode(week) {
+    return 'w-' + week.days.map((s) => (s.r ? recipeIds.indexOf(s.r).toString(36).padStart(2, '0') : 'zz')).join('') + week.days.map((s) => (s.second ? '1' : '0')).join('');
+  }
+  function decode(code, week) {
+    const m = /^w-([0-9a-z]{14})([01]{7})?$/.exec(code || '');
+    if (!m) return null;
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const pair = m[1].slice(i * 2, i * 2 + 2);
+      const id = pair === 'zz' ? null : recipeIds[parseInt(pair, 36)];
+      days.push({ r: id || null, d: null, lock: false, second: !!id && !!m[2] && m[2][i] === '1' });
+    }
+    return { ...week, days };
+  }
+
+  // ---- writing back to Iris ---------------------------------------------------------------
+  function toIris(week, ticked = new Set()) {
+    const a = dayDate(week.start, 0);
+    const heading = (i) => { const d = dayDate(week.start, i); return `## ${DAY_NAMES[i]} ${d.getUTCDate()}/${d.getUTCMonth() + 1}`; };
+    const dayLine = (s) => {
+      if (!s.r) return '- _(nothing planned)_';
+      if (s.second) return `- ${R[s.r].n} _(second night, already cooked)_`;
+      const diners = s.d && s.d !== R[s.r].sv ? ` _(for ${s.d})_` : '';
+      return `- {{diagram:${s.r}:name}}${diners}`;
+    };
+    // Same shape as the saved plans: the weekend, then the working week.
+    const plan = ['# Week 1:'];
+    week.days.forEach((s, i) => {
+      if (i === 2) plan.push('# Week 2:');
+      plan.push(heading(i), dayLine(s), '');
+    });
+    if (week.extras.length) plan.push('# Extras', ...week.extras.map((id) => `- {{diagram:${id}:name}}`), '');
+    const s = shop(week);
+    const range = rangeLabel(week.start);
+    const meals = week.days.map((x, i) => (x.r ? `${DAY_SHORT[i]} ${R[x.r].n.toLowerCase()}` : null)).filter(Boolean).join(', ');
+    const list = [`Shopping list for ${range}, dealt in Dinner Deck. ${meals}.`, ''];
+    const section = (title, lines) => {
+      if (!lines.length) return;
+      list.push(`## ${title}`, '');
+      for (const l of lines) {
+        const from = [...new Set(l.parts.map((p) => p.label.toLowerCase()))];
+        if (l.weekly) from.push('every week');
+        const why = from.length ? ` _(${from.join(', ')})_` : '';
+        list.push(`- [${ticked.has(l.g) ? 'x' : ' '}] ${l.qty ? l.qty + ' ' : ''}{{element:${l.g}:name}}${why}`);
+      }
+      list.push('');
+    };
+    deck.aisles.forEach((name, i) => section(name, s.lines.filter((l) => l.aisle === i && l.tier !== 'cupboard')));
+    section('Check the cupboard', s.lines.filter((l) => l.tier === 'cupboard'));
+    return {
+      packageName: a.toISOString().slice(0, 10),
+      planName: `From ${range}`,
+      planDescription: meals + '.',
+      planMarkdown: plan.join('\n').trim(),
+      listName: `Shopping list ${range}`,
+      listDescription: `Shopping list for the ${range} meal plan, made in Dinner Deck. Grouped by aisle in store order.`,
+      listMarkdown: list.join('\n').trim(),
+    };
+  }
+
+  return { G, R, recipeIds, dinners, needs, feeds, planned, habits, shop, insights, stats, deal, move, addSecondNight, encode, decode, toIris, STYLES, unitOf };
+}
+
+
+const DECK = JSON.parse(document.getElementById('deck-data').textContent);
+const E = makeEngine(DECK);
+const { G, R } = E;
+const KEY = 'dinner-deck:v1';
+const TAB = Math.random().toString(36).slice(2, 10);
+const IRIS = 'iris';
+const $ = (id) => document.getElementById(id);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isPhone = () => window.matchMedia('(max-width: 900px)').matches;
+
+const PIPS = {
+  sea: '<path d="M2 12c3-5 8-6 12-4l6-3.500v15L14 16c-4 2-9 1-12-4z"/><circle cx="7.500" cy="11" r="1.200" fill="var(--card)"/>',
+  chicken: '<ellipse cx="14.500" cy="9" rx="6.200" ry="5" transform="rotate(-40 14.500 9)"/><path d="M10 13.500 5.500 18" stroke="currentColor" stroke-width="2.600" stroke-linecap="round" fill="none"/><circle cx="4.800" cy="18.700" r="2.300"/>',
+  pork: '<path d="M4.500 4l5.500 3.500-5 3.500zM19.500 4 14 7.500l5 3.500z"/><circle cx="12" cy="13" r="7.500"/><ellipse cx="12" cy="14.800" rx="3.400" ry="2.400" fill="var(--card)"/><circle cx="10.800" cy="14.800" r=".75"/><circle cx="13.200" cy="14.800" r=".75"/>',
+  lamb: '<circle cx="10" cy="9.500" r="3.800"/><circle cx="14.500" cy="8" r="4"/><circle cx="18.500" cy="11" r="3.600"/><circle cx="13.500" cy="13.500" r="4.300"/><circle cx="9" cy="13.500" r="3.400"/><ellipse cx="4.600" cy="10.500" rx="2.700" ry="3.300"/><path d="M2.200 8.600 4 9.600" stroke="currentColor" stroke-width="1.600" stroke-linecap="round"/><path d="M10 17v4M16 17v4" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" fill="none"/>',
+  veg: '<path d="M4 20C4 10 10 4 20 4c0 10-6 16-16 16z"/><path d="M5 19 14.500 9.500" stroke="var(--card)" stroke-width="1.500" fill="none"/>',
+};
+const PIP_NAMES = { sea: 'Fish and seafood', chicken: 'Chicken', pork: 'Pork', lamb: 'Lamb', veg: 'No meat' };
+const LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const KIND_LABEL = { side: 'side', lunch: 'lunch', breakfast: 'breakfast', drink: 'drink' };
+
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k === 'svg') el.innerHTML = v; // static markup defined in this file only
+    else if (k === 'style') el.style.cssText = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid == null || kid === false) continue;
+    el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+const pip = (kind, cls = 'pip') => h('span', { class: `${cls} ${kind}`, role: 'img', 'aria-label': PIP_NAMES[kind], title: PIP_NAMES[kind], svg: `<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%">${PIPS[kind]}</svg>` });
+
+// ---------------------------------------------------------------- state
+const disk = {
+  read() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } },
+  write(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* private window: carry on in memory */ } },
+};
+const saved = disk.read();
+const S = {
+  start: weekStart(new Date()), week: null, ticks: new Set(), rev: 0,
+  style: saved.style || 'usual', view: 'week', filter: 'all', q: '', pickDay: null, why: '', open: new Set(), cloud: false,
+};
+
+function seedFor(start) { return Number(start.replace(/-/g, '')); }
+function loadWeek(start) {
+  S.start = start;
+  const rec = (saved.weeks || {})[start];
+  if (rec) {
+    S.week = { ...emptyWeek(start), ...rec.week, start };
+    S.ticks = new Set(rec.ticks || []); S.rev = rec.rev || 0; S.why = '';
+  } else {
+    const dealt = E.deal(emptyWeek(start), 'usual', mulberry32(seedFor(start)));
+    S.week = dealt.week; S.ticks = new Set(); S.rev = 0;
+    S.why = 'Dealt to get you started. ' + dealt.why;
+  }
+}
+function persist() {
+  saved.weeks = saved.weeks || {};
+  saved.weeks[S.start] = { week: S.week, ticks: [...S.ticks], rev: S.rev };
+  const keep = Object.keys(saved.weeks).sort().slice(-8);
+  for (const k of Object.keys(saved.weeks)) if (!keep.includes(k)) delete saved.weeks[k];
+  saved.style = S.style;
+  disk.write(saved);
+}
+function commit(week, why) {
+  S.week = week;
+  if (why !== undefined) S.why = why;
+  touched();
+  renderAll();
+}
+function touched() { S.rev = Date.now(); persist(); pushCloud(); }
+
+// ---------------------------------------------------------------- shared across devices (artifact database)
+let db = null, unsub = null, writing = false, dirty = false, lastRev = 0, timer = 0;
+async function initCloud() {
+  if (!window.claude || typeof window.claude.use !== 'function') return;
+  try { db = await window.claude.use('db'); } catch { db = null; }
+  if (db) subscribe();
+}
+function subscribe() {
+  if (unsub) unsub();
+  if (!db) return;
+  const start = S.start;
+  try {
+    unsub = db.doc('weeks/' + start).onSnapshot((snap) => {
+      if (start !== S.start) return;
+      S.cloud = true; renderFoot();
+      if (!snap.exists || snap.metadata.hasPendingWrites) return;
+      const d = snap.data();
+      if ((d.tab === TAB && d.rev === lastRev) || (d.rev || 0) <= S.rev) return;
+      S.week = { ...emptyWeek(start), days: d.days, extras: d.extras || [], adds: d.adds || [], everyWeek: d.everyWeek !== false, start };
+      S.ticks = new Set(d.ticks || []); S.rev = d.rev; S.why = '';
+      persist(); renderAll();
+    }, () => { db = null; S.cloud = false; renderFoot(); });
+  } catch { db = null; }
+}
+function pushCloud() {
+  if (!db) return;
+  dirty = true; clearTimeout(timer); timer = setTimeout(flush, 700);
+}
+async function flush() {
+  if (writing || !dirty || !db) return;
+  writing = true; dirty = false;
+  const body = { days: S.week.days, extras: S.week.extras, adds: S.week.adds, everyWeek: S.week.everyWeek, ticks: [...S.ticks], rev: S.rev, tab: TAB };
+  lastRev = body.rev;
+  try { await db.doc('weeks/' + S.start).set(body); } catch (e) {
+    if (e && e.code !== 'unavailable') { db = null; S.cloud = false; renderFoot(); } // a viewer who may not write keeps a private copy
+  }
+  writing = false;
+  if (dirty) flush();
+}
+
+// ---------------------------------------------------------------- derived
+let SHOP, INS, STATS, COLOR;
+function derive() {
+  SHOP = E.shop(S.week); INS = E.insights(S.week, SHOP); STATS = E.stats(S.week, SHOP);
+  COLOR = new Map(INS.shared.map((l, i) => [l.g, `var(--t${Math.min(i, 7)})`]));
+}
+const toBuy = () => SHOP.lines.filter((l) => l.tier !== 'cupboard');
+const dayOf = (id) => S.week.days.findIndex((s) => s.r === id && !s.second);
+
+// ---------------------------------------------------------------- deck
+function matches(id) {
+  const r = R[id];
+  if (S.filter === 'extras' ? r.k === 'dinner' : S.filter !== 'all' && (r.k !== 'dinner' || r.pr !== S.filter)) return false;
+  if (!S.q) return true;
+  const q = S.q.toLowerCase();
+  return r.n.toLowerCase().includes(q) || (r.tg || []).some((t) => t.includes(q)) || r.i.some((ing) => G[ing.g].n.toLowerCase().includes(q));
+}
+function renderDeck() {
+  const list = $('cards');
+  const ids = E.recipeIds.filter(matches);
+  $('pick-banner').hidden = S.pickDay == null;
+  if (S.pickDay != null) $('pick-text').textContent = `Choosing ${DAY_NAMES[S.pickDay]}'s dinner. Pick a card.`;
+  list.replaceChildren(...ids.map((id) => {
+    const r = R[id], at = dayOf(id), extra = S.week.extras.includes(id);
+    const tags = [];
+    if (at !== -1) tags.push(h('span', { class: 'tag on', text: DAY_SHORT[at] }));
+    else if (extra) tags.push(h('span', { class: 'tag on', text: 'extra' }));
+    if (r.k !== 'dinner') tags.push(h('span', { class: 'tag', text: KIND_LABEL[r.k] }));
+    if (E.needs[id]) tags.push(h('span', { class: 'tag', text: 'leftovers' }));
+    if (r.b) tags.push(h('span', { class: 'tag', text: `×${r.b}` }));
+    return h('li', null, h('button', {
+      class: 'pcard' + (at !== -1 || extra ? ' used' : ''), type: 'button', 'data-drag': 'deck', 'data-id': id,
+      onclick: () => (S.pickDay != null ? place(id, S.pickDay) : openRecipe(id)),
+    }, pip(r.pr), h('span', { class: 'nm', text: r.n }), h('span', { class: 'tags' }, tags)));
+  }));
+  if (!ids.length) list.append(h('li', { class: 'empty', text: `Nothing in the deck matches "${S.q}".` }));
+  for (const b of document.querySelectorAll('#filters .chip')) b.setAttribute('aria-pressed', String(b.dataset.f === S.filter));
+}
+function place(id, day) {
+  const kind = R[id].k;
+  S.pickDay = null;
+  commit(E.move(S.week, { deck: id }, { day }), '');
+  if (kind !== 'dinner' && kind !== 'side') toast(`${R[id].n} is not a dinner, so it went to this week's extras.`);
+  if (isPhone()) setView('week');
+}
+
+// ---------------------------------------------------------------- week
+function metaFor(slot, day) {
+  const r = R[slot.r], bits = [];
+  if (slot.second) return [h('span', { text: 'Second night. Already cooked, nothing to buy.' })];
+  const warn = INS.warnings.find((w) => w.day === day);
+  if (warn) bits.push(h('span', { class: 'warn', text: warn.why === 'missing' ? `Needs leftovers from ${R[warn.needs].n.toLowerCase()}, which is not on the board.` : `Needs leftovers from ${DAY_NAMES[warn.at]}. Move it later in the week.` }));
+  const chainTo = INS.chains.find((c) => c.from === day), chainFrom = INS.chains.find((c) => c.to === day);
+  if (chainTo) bits.push(h('span', { text: `Cook once. Leftovers become ${DAY_NAMES[chainTo.to]}'s dinner.` }));
+  if (chainFrom) bits.push(h('span', { text: `Made from ${DAY_NAMES[chainFrom.from]}'s leftovers.` }));
+  if (!bits.length) {
+    const n = SHOP.lines.filter((l) => l.tier === 'meals' && l.parts.some((p) => p.day === day)).length;
+    const parts = [`${n} to buy`];
+    if (slot.d && slot.d !== r.sv) parts.push(`for ${slot.d}`);
+    const habit = INS.habitNotes.find((x) => x.day === day);
+    if (habit) parts.push(`${DAY_NAMES[day]} in ${habit.n} of ${habit.of} saved weeks`);
+    for (const x of INS.inside.filter((x) => x.day === day)) parts.push(`${R[x.inner].n} is inside this one`);
+    bits.push(h('span', { text: parts.join(' · ') }));
+  }
+  return bits;
+}
+function renderWeek() {
+  $('range').textContent = rangeLabel(S.start).replace(/ \d{4}$/, '');
+  $('why').textContent = S.why;
+  for (const b of document.querySelectorAll('#styles button')) b.setAttribute('aria-pressed', String(b.dataset.s === S.style));
+  $('days').replaceChildren(...S.week.days.map((slot, i) => {
+    const date = dayDate(S.start, i).getUTCDate();
+    const label = h('div', { class: 'd' }, h('b', { text: DAY_SHORT[i] }), h('span', { text: String(date) }));
+    let inner;
+    if (!slot.r || !R[slot.r]) {
+      inner = h('div', { class: 'slot', 'data-drop-day': i }, h('button', { class: 'open', type: 'button', text: S.pickDay === i ? 'Pick a card from the deck…' : 'Drop a card here, or choose one', onclick: () => startPick(i) }));
+    } else {
+      const r = R[slot.r];
+      const threads = slot.second ? [] : INS.shared.filter((l) => l.days.includes(i)).slice(0, 3).map((l) => h('button', {
+        class: 'thread', type: 'button', style: `--tc:${COLOR.get(l.g)}`, 'data-g': l.g, text: l.name, title: `${l.name}: ${l.days.map((d) => DAY_NAMES[d]).join(', ')}`,
+        onmouseenter: () => highlight(l.g, true), onmouseleave: () => highlight(l.g, false), onfocus: () => highlight(l.g, true), onblur: () => highlight(l.g, false),
+        onclick: () => revealInShop(l.g),
+      }));
+      const tools = [];
+      if (r.b && !slot.second && !INS.batches.find((b) => b.day === i && b.second !== -1)) tools.push(h('button', { class: 'tool', type: 'button', title: 'Add its second night', 'aria-label': `Add a second night of ${r.n}`, text: '+2', style: 'font-weight:700;font-size:12px', onclick: () => { const w = E.addSecondNight(S.week, i); w ? commit(w, 'One cook, two dinners. The second night adds nothing to the shop.') : toast('No free day left for a second night.'); } }));
+      tools.push(h('button', { class: 'tool', type: 'button', svg: LOCK, 'aria-pressed': String(!!slot.lock), title: slot.lock ? 'Kept when you deal again' : 'Keep this when dealing again', 'aria-label': `Keep ${r.n} on ${DAY_NAMES[i]} when dealing again`, onclick: () => { const w = { ...S.week, days: S.week.days.map((s, k) => (k === i ? { ...s, lock: !s.lock } : s)) }; commit(w); } }));
+      tools.push(h('button', { class: 'tool', type: 'button', text: '×', style: 'font-size:20px', title: 'Back to the deck', 'aria-label': `Take ${r.n} off ${DAY_NAMES[i]}`, onclick: () => commit(E.move(S.week, { day: i }, { deck: true }), '') }));
+      inner = h('div', { class: 'slot', 'data-drop-day': i }, h('div', { class: 'dcard' + (slot.second ? ' second' : ''), 'data-drag': 'day', 'data-day': i, 'data-id': slot.r },
+        pip(r.pr),
+        h('button', { class: 'body', type: 'button', 'aria-label': `${DAY_NAMES[i]}: ${r.n}. Open recipe.`, onclick: () => openRecipe(slot.r, i) }, h('span', { class: 'nm', text: r.n }), h('span', { class: 'meta' }, metaFor(slot, i))),
+        h('div', { class: 'threads' }, threads),
+        h('div', { class: 'tools' }, tools)));
+    }
+    const chain = INS.chains.find((c) => c.from === i && c.to === i + 1);
+    return h('li', { class: 'day', 'data-i': i }, label, inner, chain && h('div', { class: 'link', 'aria-hidden': 'true' }, h('span', { text: 'leftovers ↓' })));
+  }));
+  const x = $('extras');
+  x.replaceChildren(h('span', { text: S.week.extras.length ? 'Also this week:' : 'Breakfasts, sides and drinks can ride along as extras.' }),
+    ...S.week.extras.map((id) => h('span', { class: 'xchip' }, h('span', { text: R[id].n }), h('button', { type: 'button', text: '×', 'aria-label': `Remove ${R[id].n} from extras`, onclick: () => commit({ ...S.week, extras: S.week.extras.filter((e) => e !== id) }) }))));
+  renderNotes();
+}
+function renderNotes() {
+  const out = [];
+  const b = (t) => h('b', { text: t });
+  for (const c of INS.chains) out.push(h('li', { class: 'note chain' }, b('Leftover chain. '), `${DAY_NAMES[c.from]}'s ${R[c.source].n.toLowerCase()} becomes ${DAY_NAMES[c.to]}'s lasagne. One cook, two dinners, and the pork for the lasagne is not on the list.`));
+  for (const w of INS.warnings) out.push(h('li', { class: 'note chain' }, b(`${R[w.r].n} has nothing to be made from. `), w.why === 'missing' ? 'Put ' : 'Move it after ', h('button', { type: 'button', text: R[w.needs].n, onclick: () => openRecipe(w.needs) }), w.why === 'missing' ? ' on an earlier day.' : '.'));
+  if (INS.shared.length) {
+    const top = INS.shared.slice(0, 5).map((l) => `${l.name.toLowerCase()} (${l.days.length} meals)`).join(', ');
+    out.push(h('li', { class: 'note' }, b(`${INS.shared.length} ${INS.shared.length === 1 ? 'thing does' : 'things do'} double duty. `), `${top}${INS.shared.length > 5 ? ' and more' : ''}. Bought once, the shop is ${STATS.saved} ${STATS.saved === 1 ? 'line' : 'lines'} shorter.`));
+  }
+  for (const l of INS.loose.slice(0, 3)) {
+    const left = `${formatQty(l.left, l.unit)} of ${l.name.toLowerCase()}`;
+    const uses = l.uses.slice(0, 2);
+    out.push(h('li', { class: 'note' }, b('Loose end. '), `You will have ${left} left over.`, uses.length ? [' ', ...uses.flatMap((id, k) => [k ? ' or ' : '', h('button', { type: 'button', text: R[id].n, onclick: () => openRecipe(id) })]), ' would use it up.'] : ' Nothing else in the deck uses it.'));
+  }
+  for (const bt of INS.batches.filter((x) => x.second === -1)) out.push(h('li', { class: 'note' }, b('Batch cook. '), `${R[bt.r].n} makes two nights. `, h('button', { type: 'button', text: 'Add the second night', onclick: () => { const w = E.addSecondNight(S.week, bt.day); w ? commit(w, 'One cook, two dinners.') : toast('No free day left for a second night.'); } }), '. It costs nothing at the shop.'));
+  for (const x of INS.inside) out.push(h('li', { class: 'note' }, b('A recipe inside a recipe. '), `${R[x.r].n} contains all of `, h('button', { type: 'button', text: R[x.inner].n, onclick: () => openRecipe(x.inner) }), '.'));
+  if (INS.flagged.length) out.push(h('li', { class: 'note' }, b(`${INS.flagged.length} ${INS.flagged.length === 1 ? 'quantity' : 'quantities'} in Iris look wrong. `), INS.flagged.slice(0, 2).map((l) => `${l.odd[0]} of ${l.name.toLowerCase()}`).join('; ') + '. They are left out of the totals and marked on the list.'));
+  const empties = S.week.days.filter((s) => !s.r).length;
+  if (empties === 7) out.push(h('li', { class: 'note' }, 'An empty table. Drag cards over from the deck, or press Deal me a week.'));
+  $('notes').replaceChildren(out.length ? h('h3', { text: 'What this week knows' }) : '', ...out);
+}
+function startPick(i) {
+  S.pickDay = S.pickDay === i ? null : i;
+  renderDeck(); renderWeek();
+  if (S.pickDay != null) { if (isPhone()) setView('deck'); else $('search').focus(); }
+}
+function highlight(g, on) {
+  for (const el of document.querySelectorAll(`[data-g="${g}"]`)) (el.closest('.dcard') || el.closest('.item') || el).classList.toggle('hl', on);
+}
+function revealInShop(g) {
+  if (isPhone()) setView('shop');
+  S.open.add(g); renderShop();
+  const el = document.querySelector(`.item[data-g="${g}"]`);
+  if (el) { el.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' }); el.classList.add('hl'); setTimeout(() => el.classList.remove('hl'), 1600); }
+}
+
+// ---------------------------------------------------------------- shop
+let shownCount = null;
+function tween(el, to) {
+  const from = shownCount == null ? to : shownCount; shownCount = to;
+  if (from === to || reduceMotion) { el.textContent = String(to); return; }
+  const t0 = performance.now();
+  const step = (t) => { const p = Math.min(1, (t - t0) / 380); el.textContent = String(Math.round(from + (to - from) * p)); if (p < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function itemRow(l) {
+  const done = S.ticks.has(l.g), open = S.open.has(l.g), id = 'tick-' + l.g;
+  const badges = [];
+  if (l.days.length >= 2) badges.push(h('span', { class: 'badge share', style: `--tc:${COLOR.get(l.g) || 'var(--rust)'}`, text: `${l.days.length} meals` }));
+  if (l.weekly) badges.push(h('span', { class: 'badge weekly', text: 'every week' }));
+  if (l.optional) badges.push(h('span', { class: 'badge weekly', text: 'optional' }));
+  if (l.odd.length) badges.push(h('span', { class: 'badge odd', text: 'check amount', title: l.odd.join('; ') }));
+  const from = [];
+  for (const p of l.parts) from.push(`${p.label}${p.q != null ? ' ' + formatQty(p.q, p.unit) : ''}${p.opt ? ' (optional)' : ''}`);
+  if (l.weekly) from.push('every week' + (l.weekly.q != null ? ' ' + formatQty(l.weekly.q, l.weekly.unit) : '') + (l.weekly.note ? `, ${l.weekly.note}` : ''));
+  if (l.added) from.push(`added by hand ×${l.added.q}`);
+  const detail = h('div', { class: 'detail', hidden: !open },
+    l.product && h('span', { class: 'product', text: l.product }),
+    h('span', { class: 'from', text: [...from, ...l.notes, ...l.odd.map((o) => `Iris: ${o}, which looks wrong`)].join(' · ') }));
+  return h('li', { class: 'item' + (done ? ' done' : '') + (open ? ' open' : ''), 'data-g': l.g },
+    h('div', { class: 'main' },
+      h('input', { type: 'checkbox', id, checked: done, 'aria-label': `${l.name}${l.qty ? ', ' + l.qty : ''}`, onchange: (e) => { e.target.checked ? S.ticks.add(l.g) : S.ticks.delete(l.g); touched(); renderShop(); renderTabs(); } }),
+      h('button', { class: 'more', type: 'button', 'aria-expanded': String(open), onclick: () => { open ? S.open.delete(l.g) : S.open.add(l.g); renderShop(); } }, h('span', { class: 'nm', text: l.name }), badges),
+      h('span', { class: 'qty', text: l.qty }),
+      l.added && h('button', { class: 'x', type: 'button', text: '×', 'aria-label': `Remove ${l.name} that you added`, onclick: () => commit({ ...S.week, adds: S.week.adds.filter((a) => a.g !== l.g) }) })),
+    detail);
+}
+function renderShop() {
+  const buy = toBuy(), got = buy.filter((l) => S.ticks.has(l.g)).length;
+  tween($('n-items'), buy.length);
+  $('n-aisles').textContent = String(STATS.aisles);
+  $('n-saved').hidden = STATS.saved < 1;
+  $('n-saved').textContent = ` · sharing saves ${STATS.saved}`;
+  $('progress').style.width = buy.length ? `${(got / buy.length) * 100}%` : '0';
+  $('n-got').textContent = got ? `${got} of ${buy.length} in the trolley` : 'in the order you walk the store';
+  $('every-week').checked = S.week.everyWeek;
+  const sections = [];
+  DECK.aisles.forEach((name, a) => {
+    const lines = buy.filter((l) => l.aisle === a);
+    if (!lines.length) return;
+    lines.sort((x, y) => S.ticks.has(x.g) - S.ticks.has(y.g) || x.name.localeCompare(y.name));
+    const left = lines.filter((l) => !S.ticks.has(l.g)).length;
+    sections.push(h('section', { class: 'aisle' }, h('div', { class: 'aisle-h' }, h('h3', { style: 'font:inherit', text: name }), h('span', { text: left ? `${left} to get` : 'done' })), h('ul', { class: 'items' }, lines.map(itemRow))));
+  });
+  if (!buy.length) sections.push(h('p', { class: 'empty', text: 'Nothing to buy yet. Put a dinner on the table and the list writes itself.' }));
+  const cup = SHOP.lines.filter((l) => l.tier === 'cupboard');
+  if (cup.length) sections.push(h('details', { class: 'cupboard', open: saved.cupOpen || null, ontoggle: (e) => { saved.cupOpen = e.target.open; disk.write(saved); } }, h('summary', { text: `Check the cupboard (${cup.length}): ${cup.slice(0, 4).map((l) => l.name.toLowerCase()).join(', ')}${cup.length > 4 ? '…' : ''}` }), h('ul', { class: 'items' }, cup.map(itemRow))));
+  for (const f of SHOP.fromFridge.filter((x) => !x.made && !x.from)) sections.push(h('p', { class: 'fine', style: 'margin:12px 0 0', text: `${R[f.r].n} also wants ${f.name.toLowerCase()}. Iris does not say which recipe makes it, so it is not on the list.` }));
+  $('list').replaceChildren(...sections);
+}
+function renderFoot() {
+  $('sync').textContent = `${S.cloud ? 'This week is shared with everyone who can open this page.' : 'This week is saved on this device.'} Recipes read from Iris on ${new Date(DECK.read + 'T00:00:00Z').toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}.`;
+}
+function renderTabs() {
+  const buy = toBuy(), left = buy.filter((l) => !S.ticks.has(l.g)).length;
+  $('tab-week-n').textContent = `${S.week.days.filter((s) => s.r).length} of 7`;
+  $('tab-deck-n').textContent = `${E.recipeIds.length} cards`;
+  $('tab-shop-n').textContent = `${left} to get`;
+  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-current', String(b.dataset.v === S.view));
+}
+let wake = null;
+function setView(v) {
+  S.view = v; $('app').dataset.view = v; renderTabs();
+  if (v === 'shop' && isPhone() && navigator.wakeLock) navigator.wakeLock.request('screen').then((w) => { wake = w; }).catch(() => {});
+  else if (wake) { wake.release().catch(() => {}); wake = null; }
+}
+function renderAll() { derive(); renderDeck(); renderWeek(); renderShop(); renderFoot(); renderTabs(); }
+
+// add anything from the grocery catalogue
+const catalogue = Object.keys(G).filter((g) => !G[g].l).sort((a, b) => G[a].n.localeCompare(G[b].n));
+let sugCur = 0, sugIds = [];
+function renderSuggest() {
+  const q = $('add').value.trim().toLowerCase(), box = $('suggest');
+  sugIds = q ? catalogue.filter((g) => G[g].n.toLowerCase().includes(q)).sort((a, b) => G[a].n.toLowerCase().indexOf(q) - G[b].n.toLowerCase().indexOf(q)).slice(0, 8) : [];
+  sugCur = Math.min(sugCur, Math.max(0, sugIds.length - 1));
+  box.hidden = !q;
+  box.replaceChildren(...sugIds.map((g, i) => h('li', null, h('button', { type: 'button', class: i === sugCur ? 'cur' : '', onclick: () => addItem(g) }, h('span', { text: G[g].n }), h('small', { text: DECK.aisles[G[g].a] })))));
+  if (q && !sugIds.length) box.append(h('li', { class: 'empty', style: 'padding:10px', text: `"${$('add').value.trim()}" is not one of the ${catalogue.length} groceries in Iris.` }));
+}
+function addItem(g) {
+  const adds = S.week.adds.map((a) => ({ ...a }));
+  const hit = adds.find((a) => a.g === g);
+  hit ? hit.q++ : adds.push({ g, q: 1 });
+  $('add').value = ''; sugCur = 0; renderSuggest();
+  commit({ ...S.week, adds });
+  toast(`${G[g].n} added under ${DECK.aisles[G[g].a]}.`);
+}
+
+// ---------------------------------------------------------------- recipe sheet
+const sheet = $('sheet');
+function openSheet(nodes) { $('sheet-inner').replaceChildren(...nodes); if (!sheet.open) (sheet.showModal ? sheet.showModal() : sheet.setAttribute('open', '')); }
+function closeSheet() { sheet.open && sheet.close ? sheet.close() : sheet.removeAttribute('open'); }
+function inline(text) {
+  return text.split(/(\*\*[^*]+\*\*)/).filter(Boolean).map((part) => (part.startsWith('**') ? h('strong', { text: part.slice(2, -2) }) : part));
+}
+function openRecipe(id, dayHint) {
+  const r = R[id];
+  const at = dayHint != null ? dayHint : dayOf(id);
+  const slot = at !== -1 ? S.week.days[at] : null;
+  const rows = [];
+  let sec = null;
+  for (const ing of r.i) {
+    if ((ing.h || '') !== (sec || '')) { sec = ing.h || ''; if (sec) rows.push(h('li', { class: 'sec', text: sec })); }
+    const g = G[ing.g], unit = E.unitOf(ing);
+    const extra = [ing.t, ing.o && 'optional', ing.alt && `or ${G[ing.alt].n.toLowerCase()}`, ing.odd && 'this amount looks wrong in Iris'].filter(Boolean).join(', ');
+    rows.push(h('li', { class: 'q', text: ing.q != null ? formatQty(ing.q, unit) : '' }), h('li', { class: 'n' }, g.n, extra && h('small', { text: ` (${extra})` })));
+  }
+  for (const x of r.x || []) rows.push(h('li', { class: 'q' }), h('li', { class: 'n', text: x }));
+  const steps = [], paras = [], after = [];
+  for (const line of (r.m || '').split('\n').map((s) => s.trim()).filter(Boolean)) {
+    const m = /^\d+\.\s+(.*)$/.exec(line);
+    if (m) steps.push(h('li', null, inline(m[1])));
+    else if (line.startsWith('#')) after.push(h('h3', { text: line.replace(/^#+\s*/, '') }));
+    else if (line.startsWith('- ')) after.push(h('p', null, '• ', inline(line.slice(2))));
+    else (steps.length ? after : paras).push(h('p', null, inline(line)));
+  }
+  const facts = [`Serves ${r.sv}`, PIP_NAMES[r.pr].toLowerCase(), ...(r.tg || []), r.k !== 'dinner' && KIND_LABEL[r.k], E.planned[id] && `in ${E.planned[id]} of ${DECK.plans.length} saved weeks`].filter(Boolean).join(' · ');
+  const isDinner = r.k === 'dinner' || r.k === 'side';
+  const puton = isDinner ? h('div', { class: 'puton', role: 'group', 'aria-label': 'Put on a day' }, DAY_SHORT.map((d, i) => h('button', {
+    type: 'button', class: i === at ? 'here' : '', text: d, 'aria-label': `Put on ${DAY_NAMES[i]}`, 'aria-pressed': String(i === at),
+    onclick: () => { const w = at !== -1 ? E.move(S.week, { day: at }, { day: i }) : E.move(S.week, { deck: id }, { day: i }); S.pickDay = null; closeSheet(); commit(w, ''); toast(`${r.n} is on ${DAY_NAMES[i]}.`); },
+  }))) : h('div', { class: 'puton' }, h('button', { type: 'button', text: S.week.extras.includes(id) ? 'In this week’s extras' : 'Add to this week’s extras', onclick: () => { closeSheet(); commit(E.move(S.week, { deck: id }, { extras: true })); toast(`${r.n} added to extras.`); } }));
+  const body = [
+    r.d && h('p', { text: r.d }),
+    h('p', { class: 'fine', text: facts }),
+    h('div', null, h('h3', { text: isDinner ? 'Put it on' : 'This week' }), h('div', { style: 'margin-top:6px' }, puton)),
+    slot && !slot.second && h('div', null, h('h3', { text: 'Eating' }), h('div', { class: 'stepper', style: 'margin-top:6px' },
+      h('button', { type: 'button', text: '−', 'aria-label': 'One fewer', onclick: () => setDiners(at, -1, id) }),
+      h('output', { id: 'diners', text: String(slot.d || r.sv) }),
+      h('button', { type: 'button', text: '+', 'aria-label': 'One more', onclick: () => setDiners(at, 1, id) }),
+      h('span', { class: 'fine', text: `The recipe serves ${r.sv}. The shop scales to match.` }))),
+    h('div', null, h('h3', { text: 'Ingredients' }), h('ul', { class: 'ing' }, rows)),
+    (steps.length || paras.length) ? [h('div', null, h('h3', { text: 'Method' }), paras, steps.length ? h('ol', { class: 'method' }, steps) : null), after.length ? h('div', { class: 'after' }, after) : null] : h('p', { class: 'fine', text: 'No method is written down in Iris for this one.' }),
+  ];
+  openSheet([
+    h('div', { class: 'sheet-head' }, pip(r.pr), h('h2', { text: r.n, id: 'sheet-title' }), h('button', { class: 'close', type: 'button', text: '×', 'aria-label': 'Close', onclick: closeSheet })),
+    h('div', { class: 'sheet-body' }, body),
+    h('div', { class: 'sheet-foot' },
+      h('a', { href: `${DECK.iris.base}/views/${id}`, target: '_blank', rel: 'noopener', text: 'Open in Iris' }),
+      slot && h('button', { class: 'ghost', type: 'button', style: 'margin-left:auto', text: 'Take off the table', onclick: () => { closeSheet(); commit(E.move(S.week, { day: at }, { deck: true }), ''); } })),
+  ]);
+}
+function setDiners(day, delta, id) {
+  const slot = S.week.days[day], r = R[id];
+  const d = Math.max(1, Math.min(16, (slot.d || r.sv) + delta));
+  S.week = { ...S.week, days: S.week.days.map((s, k) => (k === day ? { ...s, d: d === r.sv ? null : d } : s)) };
+  touched(); renderAll();
+  const out = $('diners'); if (out) out.textContent = String(d);
+}
+
+// ---------------------------------------------------------------- copy, share, save to Iris
+async function copy(text, okMessage) {
+  try { await navigator.clipboard.writeText(text); toast(okMessage); return true; } catch { return false; }
+}
+function copyList() {
+  const lines = [`Shopping, ${rangeLabel(S.start)}`];
+  DECK.aisles.forEach((name, a) => {
+    const ls = toBuy().filter((l) => l.aisle === a && !S.ticks.has(l.g));
+    if (ls.length) lines.push('', name.toUpperCase(), ...ls.map((l) => `- ${l.name}${l.qty ? ' ' + l.qty : ''}`));
+  });
+  const text = lines.join('\n');
+  copy(text, 'List copied.').then((ok) => { if (!ok) showText('Copy the list', text); });
+}
+function showText(title, text, note) {
+  const ta = h('textarea', { class: 'copy', readonly: true, id: 'copy-text', 'aria-label': title });
+  ta.value = text;
+  openSheet([
+    h('div', { class: 'sheet-head' }, h('h2', { text: title }), h('button', { class: 'close', type: 'button', text: '×', 'aria-label': 'Close', onclick: closeSheet })),
+    h('div', { class: 'sheet-body' }, note && h('p', { text: note }), ta),
+  ]);
+  ta.focus(); ta.select();
+}
+function shareWeek() {
+  const code = E.encode(S.week);
+  try { history.replaceState(null, '', '#' + code); } catch { location.hash = code; }
+  if (window.claude) toast('This week is now in the page link. Use Share, then Copy link.');
+  else copy(location.href, 'Link to this week copied.').then((ok) => { if (!ok) showText('Link to this week', location.href); });
+}
+
+const FIX = {
+  server_not_connected: 'Iris is not connected for you. Add it in claude.ai under Settings, Connectors, then try again.',
+  needs_reauth: 'Your Iris sign-in has lapsed. Reconnect Iris in claude.ai under Settings, Connectors, then try again.',
+  selection_required: 'You have more than one Iris connector. Choose one in claude.ai when asked, then try again.',
+  not_in_manifest: 'Iris is switched off for this page. Allow it in this page’s Permissions menu, then try again.',
+  consent_required: 'Iris has not been allowed for this page. Press the button again and choose Allow.',
+  approval_required: 'Writing to Iris needs your approval. Press the button again and choose Allow.',
+  blocked_by_policy: 'Your organisation does not allow this page to write to Iris.',
+  not_granted: 'This view cannot reach Iris.', capability_disabled: 'This view cannot reach Iris.',
+};
+function irisError(e, wrote) {
+  const code = e && e.code;
+  if (code === 'tool_error' && /auth|sign.?in|401|unauthor/i.test(e.message || '')) return 'Iris wants you signed in before it will save. In claude.ai go to Settings, Connectors, Iris and press Connect, then try again.';
+  if (code === 'tool_error') return `Iris refused: ${String(e.message || '').slice(0, 200)}`;
+  if (FIX[code]) return FIX[code];
+  return wrote || code === 'server_unavailable' || code === 'upstream_error'
+    ? 'Iris did not answer in time. Something may have been written. Check Iris before trying again.'
+    : 'Could not reach Iris just now. Nothing was written.';
+}
+async function openSave() {
+  const out = E.toIris(S.week, S.ticks);
+  const empty = S.week.days.every((s) => !s.r);
+  let mcp = null;
+  try { mcp = window.claude && window.claude.use ? await Promise.race([window.claude.use('mcp'), new Promise((r) => setTimeout(() => r(null), 4000))]) : null; } catch { mcp = null; }
+  const status = h('div', { id: 'save-status', role: 'status', hidden: true });
+  const goBtn = h('button', { class: 'go', type: 'button', style: 'flex:0 1 auto;padding:0 18px', text: 'Write both to Iris', disabled: empty || !mcp || null });
+  const say = (text, ok) => { status.hidden = false; status.className = 'status' + (ok ? ' ok' : ''); status.replaceChildren(...(Array.isArray(text) ? text : [text])); };
+  goBtn.addEventListener('click', async () => {
+    goBtn.disabled = true; say('Writing to Iris…', true);
+    let wrote = false;
+    try {
+      const made = [];
+      for (const job of [
+        { set: DECK.iris.mealPlansSet, name: out.planName, description: out.planDescription, md: out.planMarkdown },
+        { set: DECK.iris.shoppingListsSet, name: out.listName, description: out.listDescription, md: out.listMarkdown },
+      ]) {
+        const tree = (await mcp.callTool(IRIS, 'package_hierarchy', { set_id: job.set }, { cache: false })).payload;
+        const nodes = Array.isArray(tree) ? tree : (tree && (tree.result || tree.packages)) || [];
+        let pkg = nodes.find((n) => n && n.name === out.packageName);
+        if (!pkg) { pkg = (await mcp.callTool(IRIS, 'create_package', { name: out.packageName, set_id: job.set })).payload; wrote = true; }
+        const res = (await mcp.callTool(IRIS, 'create_diagram', { set_id: job.set, name: job.name, description: job.description, diagram_type: 'smart_markdown', notation: 'markdown', parent_package_id: pkg && pkg.id, data: { markdown_source: job.md } })).payload;
+        wrote = true;
+        if (res && res.error) throw { code: 'tool_error', message: String(res.message || res.error) };
+        made.push({ name: job.name, url: res && res.web_url });
+      }
+      say(['Saved. ', ...made.flatMap((m, i) => [i ? ' and ' : '', m.url ? h('a', { href: m.url, target: '_blank', rel: 'noopener', text: m.name }) : m.name]), ' are in Iris.'], true);
+      toast('Saved to Iris.');
+    } catch (e) { say(irisError(e, wrote), false); goBtn.disabled = false; }
+  });
+  openSheet([
+    h('div', { class: 'sheet-head' }, h('h2', { text: 'Save this week to Iris' }), h('button', { class: 'close', type: 'button', text: '×', 'aria-label': 'Close', onclick: closeSheet })),
+    h('div', { class: 'sheet-body' },
+      h('p', { text: empty ? 'There is nothing on the table to save yet.' : 'Two new things will be written. Nothing existing is changed.' }),
+      h('ul', { class: 'dest' },
+        h('li', null, h('b', { text: out.planName }), h('small', { text: `A meal plan in Weekly meal plans, package ${out.packageName}. Same shape as your saved plans, so Iris can still add it up.` })),
+        h('li', null, h('b', { text: out.listName }), h('small', { text: `A checklist in Shopping lists, package ${out.packageName}. ${toBuy().length} items in store order, ticks included.` }))),
+      !mcp && h('p', { class: 'status', text: window.claude ? 'This view cannot reach your Iris connector. Copy the markdown instead and paste it into a new Iris document.' : 'Saving straight to Iris works when this page is opened in Claude, where it can use your Iris connector. Here you can copy the markdown and paste it into Iris.' }),
+      status),
+    h('div', { class: 'sheet-foot' }, goBtn,
+      h('button', { class: 'ghost', type: 'button', text: 'Copy the plan', onclick: () => copy(out.planMarkdown, 'Meal plan markdown copied.').then((ok) => { if (!ok) showText(out.planName, out.planMarkdown); }) }),
+      h('button', { class: 'ghost', type: 'button', text: 'Copy the list', onclick: () => copy(out.listMarkdown, 'Shopping list markdown copied.').then((ok) => { if (!ok) showText(out.listName, out.listMarkdown); }) })),
+  ]);
+}
+
+// ---------------------------------------------------------------- dealing
+function dealNow() {
+  const before = S.week.days.map((s) => s.r + (s.second ? '2' : ''));
+  const { week, why } = E.deal(S.week, S.style);
+  S.pickDay = null;
+  commit(week, why);
+  if (reduceMotion) return;
+  const from = $('deal').getBoundingClientRect();
+  document.querySelectorAll('#days .day').forEach((li, i) => {
+    const card = li.querySelector('.dcard');
+    if (!card || before[i] === week.days[i].r + (week.days[i].second ? '2' : '')) return;
+    const to = card.getBoundingClientRect();
+    const dx = from.left + from.width / 2 - (to.left + to.width / 2), dy = from.top + from.height / 2 - (to.top + to.height / 2);
+    card.animate([
+      { transform: `translate(${dx}px, ${dy}px) rotate(${i % 2 ? 9 : -9}deg) scale(.35)`, opacity: 0 },
+      { opacity: 1, offset: 0.25 },
+      { transform: 'none', opacity: 1 },
+    ], { duration: 460, delay: i * 75, easing: 'cubic-bezier(.2,.9,.25,1.05)', fill: 'backwards' });
+  });
+}
+
+// ---------------------------------------------------------------- drag (mouse and pen; touch uses taps)
+let drag = null, swallowClick = false;
+document.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch' || e.button !== 0) return;
+  const src = e.target.closest('[data-drag]');
+  if (!src || e.target.closest('.tools, .threads')) return;
+  drag = { src, x: e.clientX, y: e.clientY, ghost: null, over: null };
+});
+document.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  if (!drag.ghost) {
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+    const rect = drag.src.getBoundingClientRect();
+    const g = drag.src.cloneNode(true);
+    g.classList.add('ghostcard'); g.style.width = Math.min(rect.width, 340) + 'px';
+    drag.dx = Math.min(e.clientX - rect.left, 300); drag.dy = e.clientY - rect.top;
+    document.body.append(g); document.body.classList.add('dragging');
+    drag.ghost = g; drag.src.style.opacity = '.35';
+  }
+  drag.ghost.style.left = e.clientX - drag.dx + 'px'; drag.ghost.style.top = e.clientY - drag.dy + 'px';
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const target = el && (el.closest('[data-drop-day]') || el.closest('#extras') || (drag.src.dataset.drag === 'day' && el.closest('.deck')));
+  if (target !== drag.over) { drag.over && drag.over.classList.remove('over'); target && target.classList.add('over'); drag.over = target || null; }
+});
+function endDrag(cancel) {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.ghost) return;
+  d.ghost.remove(); d.src.style.opacity = ''; document.body.classList.remove('dragging');
+  d.over && d.over.classList.remove('over');
+  swallowClick = true; setTimeout(() => { swallowClick = false; }, 0);
+  if (cancel || !d.over) return;
+  const id = d.src.dataset.id, fromDay = d.src.dataset.drag === 'day' ? Number(d.src.dataset.day) : null;
+  if (d.over.dataset.dropDay != null) {
+    const to = Number(d.over.dataset.dropDay);
+    if (fromDay != null) commit(E.move(S.week, { day: fromDay }, { day: to }), '');
+    else place(id, to);
+  } else if (d.over.id === 'extras' && fromDay == null) commit(E.move(S.week, { deck: id }, { extras: true }));
+  else if (fromDay != null) commit(E.move(S.week, { day: fromDay }, { deck: true }), '');
+}
+document.addEventListener('pointerup', () => endDrag(false));
+document.addEventListener('pointercancel', () => endDrag(true));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { endDrag(true); if (S.pickDay != null) { S.pickDay = null; renderDeck(); renderWeek(); } } });
+document.addEventListener('click', (e) => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+// ---------------------------------------------------------------- toast
+let toastTimer = 0;
+function toast(text) {
+  const t = $('toast'); t.textContent = text; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ---------------------------------------------------------------- wiring
+$('search').addEventListener('input', (e) => { S.q = e.target.value.trim(); renderDeck(); });
+$('filters').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (b) { S.filter = b.dataset.f; renderDeck(); } });
+$('pick-cancel').addEventListener('click', () => { S.pickDay = null; renderDeck(); renderWeek(); if (isPhone()) setView('week'); });
+$('styles').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.style = b.dataset.s; persist(); renderWeek(); } });
+$('deal').addEventListener('click', dealNow);
+$('clear').addEventListener('click', () => commit({ ...emptyWeek(S.start), adds: S.week.adds, everyWeek: S.week.everyWeek }, 'Table cleared.'));
+function shiftWeek(by) { const d = dayDate(S.start, by * 7); loadWeek(d.toISOString().slice(0, 10)); shownCount = null; subscribe(); renderAll(); }
+$('prev').addEventListener('click', () => shiftWeek(-1));
+$('next').addEventListener('click', () => shiftWeek(1));
+$('every-week').addEventListener('change', (e) => commit({ ...S.week, everyWeek: e.target.checked }));
+$('add').addEventListener('input', () => { sugCur = 0; renderSuggest(); });
+$('add').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') { sugCur = Math.min(sugCur + 1, sugIds.length - 1); renderSuggest(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { sugCur = Math.max(sugCur - 1, 0); renderSuggest(); e.preventDefault(); }
+  else if (e.key === 'Enter' && sugIds[sugCur]) { addItem(sugIds[sugCur]); e.preventDefault(); }
+  else if (e.key === 'Escape') { e.target.value = ''; renderSuggest(); }
+});
+$('add').addEventListener('blur', () => setTimeout(() => { if (document.activeElement && document.activeElement.closest('#suggest')) return; $('suggest').hidden = true; }, 150));
+$('add').addEventListener('focus', renderSuggest);
+$('save').addEventListener('click', openSave);
+$('copy').addEventListener('click', copyList);
+$('share').addEventListener('click', shareWeek);
+$('untick').addEventListener('click', () => { S.ticks.clear(); touched(); renderShop(); renderTabs(); });
+for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => setView(b.dataset.v));
+sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
+
+loadWeek(S.start);
+const fromLink = E.decode(location.hash.slice(1), S.week);
+if (fromLink) { S.week = fromLink; S.why = 'This week came from the link.'; S.ticks = new Set(); S.rev = Date.now(); persist(); }
+$('deck-sub').textContent = `${E.recipeIds.length} recipes · ${Object.keys(G).length} groceries · ${DECK.aisles.length} aisles`;
+renderAll();
+initCloud();
+
+</script>

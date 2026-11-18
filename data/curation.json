@@ -1,0 +1,29 @@
+{
+  "about": "The few judgements Iris does not hold. Everything else in deck.json is read from Iris. Edit here and rerun scripts/build_data.py.",
+  "read": "2026-11-18",
+  "iris": {
+    "base": "https://iris-uat.chrisbarlow.nz",
+    "mealPlansSet": "f2e064ad-9e08-4420-9c1f-3c3747b1c728",
+    "shoppingListsSet": "9ed26bcc-6077-41f0-b173-a72bee1a54f1",
+    "recipesSet": "ef57c7e7-666f-4d78-b156-c9892d533fad",
+    "shoppingListProfile": "f0f2f8e8-345c-590b-a4f3-7ed320a9c8da"
+  },
+  "leftovers": {
+    "Leftover pork": "Slow cooked pork shoulder"
+  },
+  "recipes": {
+    "Coleslaw": {"kind": "side"},
+    "Dad's potato bake": {"kind": "side"},
+    "Simple Crudités": {"kind": "side"},
+    "Lebneh": {"kind": "side"},
+    "Ham and cheese sandwiches": {"kind": "lunch"},
+    "Porridge": {"kind": "breakfast"},
+    "Pikelets": {"kind": "breakfast"},
+    "Mr Bakeman spiced lemonade": {"kind": "drink"},
+    "Dumplings and brocolli": {"protein": "veg"},
+    "Egg Pie": {"protein": "veg"},
+    "Pizza": {"protein": "veg"},
+    "Veg stew": {"protein": "veg"},
+    "Tomato pasta": {"protein": "veg"}
+  }
+}
