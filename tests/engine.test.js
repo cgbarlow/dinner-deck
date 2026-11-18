@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { makeEngine, emptyWeek, weekStart, rangeLabel, formatQty, mulberry32 } from '../src/engine.js';
+import { makeEngine, emptyWeek, weekStart, weekOf as currentWeek, rangeLabel, formatQty, mulberry32 } from '../src/engine.js';
 
 const deck = JSON.parse(readFileSync(new URL('../data/deck.json', import.meta.url)));
 const E = makeEngine(deck);
@@ -180,4 +180,68 @@ test('formatting', () => {
   assert.equal(formatQty(2, 'can'), '2 cans');
   assert.equal(formatQty(1500, 'g'), '1½ kg');
   assert.equal(formatQty(6, 'unit'), '6');
+});
+
+// ---- after the second Council review
+
+test('an every-week item covers the same item for a meal instead of doubling it', () => {
+  const w = weekOf(['Easy nachos']); w.everyWeek = true;
+  const shop = E.shop(w), ins = E.insights(w, shop);
+  assert.equal(lineFor(shop, 'Chilli beans').qty, '2 cans');
+  assert.equal(lineFor(shop, 'Nachos').qty, '500 g');
+  assert.deepEqual(ins.covered.map((l) => l.name).sort(), ['Cheese', 'Chilli beans', 'Nachos']);
+});
+
+test('things bought whole are rounded up on the list; the sums stay exact', () => {
+  const w = weekOf(['Chicken rice']); w.days[0].d = 6;
+  const beans = lineFor(E.shop(w), 'Black beans');
+  assert.equal(beans.sums.can, 0.75);
+  assert.equal(beans.qty, '1 can');
+  assert.doesNotMatch(E.shop(w).lines.map((l) => l.qty).join('|'), /packs?\b(?! of)/);
+});
+
+test('swapping two days keeps their locks', () => {
+  let w = weekOf(['Tacos', 'Pizza']); w.days[0].lock = true;
+  w = E.move(w, { day: 0 }, { day: 1 });
+  assert.equal(w.days[1].lock, true); assert.equal(E.R[w.days[1].r].n, 'Tacos');
+});
+
+test('a non-dinner dropped on a batch-cook day leaves the second night alone', () => {
+  let w = E.addSecondNight(weekOf(['Lamb stew (x2 batches)']), 0);
+  w = E.move(w, { deck: id('Porridge') }, { day: 0 });
+  assert.equal(w.days.filter((s) => s.r === id('Lamb stew (x2 batches)')).length, 2);
+});
+
+test('dealing with only a second night locked keeps its cook night', () => {
+  let w = E.addSecondNight(weekOf(['Lamb stew (x2 batches)']), 0);
+  w.days[2].lock = true;
+  for (let seed = 1; seed <= 15; seed++) {
+    const { week } = E.deal(w, 'usual', mulberry32(seed));
+    assert.equal(week.days[0].r, id('Lamb stew (x2 batches)')); assert.equal(week.days[2].second, true);
+  }
+});
+
+test('deals: never three of one protein, and the stories show up', () => {
+  for (const style of ['usual', 'thrifty', 'wild']) {
+    let chains = 0, seconds = 0, sig = new Set();
+    for (let seed = 1; seed <= 60; seed++) {
+      const { week } = E.deal(emptyWeek('2026-11-21'), style, mulberry32(seed));
+      const n = {};
+      for (const s of week.days) if (!s.second) n[E.R[s.r].pr] = (n[E.R[s.r].pr] || 0) + 1;
+      assert.ok(Math.max(...Object.values(n)) <= 2, `${style} seed ${seed}: ${JSON.stringify(n)}`);
+      const ins = E.insights(week);
+      if (ins.chains.length) chains++;
+      if (week.days.some((s) => s.second)) seconds++;
+      sig.add(week.days.map((s) => s.r).join());
+    }
+    assert.ok(chains >= 9, `${style}: chain in ${chains} of 60`);
+    assert.ok(seconds >= 5, `${style}: second night in ${seconds} of 60`);
+    assert.ok(sig.size >= 50, `${style}: ${sig.size} different weeks in 60`);
+  }
+});
+
+test('weeks planned in the app count toward habits', () => {
+  const tacos = id('Tacos');
+  const E2 = makeEngine(deck, [{ days: [null, null, null, null, null, null, tacos] }, { days: [null, null, null, null, null, null, tacos] }]);
+  assert.equal(E2.habits[6].r, tacos); assert.equal(E2.habits[6].of, 5);
 });

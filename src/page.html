@@ -35,6 +35,7 @@
           <button class="icon-btn" type="button" id="prev" aria-label="Previous week">‹</button>
           <h2 id="range"></h2>
           <button class="icon-btn" type="button" id="next" aria-label="Next week">›</button>
+          <span class="when" id="when"></span>
         </div>
         <div class="deal">
           <div class="seg" id="styles" role="group" aria-label="How to deal">
@@ -43,9 +44,11 @@
             <button type="button" data-s="wild" title="Dinners you have not planned before">Wildcard</button>
           </div>
           <button class="primary" type="button" id="deal">Deal me a week</button>
+          <button class="icon-btn" type="button" id="undo" aria-label="Undo" title="Undo (Ctrl+Z)" disabled>↶</button>
           <button class="icon-btn" type="button" id="clear" aria-label="Clear the table" title="Clear the table">⌫</button>
         </div>
       </div>
+      <div class="offer" id="offer" hidden><span>A week came in with the link.</span><button type="button" id="offer-yes">Put it on the table</button><button type="button" id="offer-no">Keep mine</button></div>
       <p class="why" id="why" aria-live="polite"></p>
       <ol class="days" id="days"></ol>
       <div class="extras" id="extras"></div>

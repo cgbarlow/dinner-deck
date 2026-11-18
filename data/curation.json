@@ -12,18 +12,32 @@
     "Leftover pork": "Slow cooked pork shoulder"
   },
   "recipes": {
-    "Coleslaw": {"kind": "side"},
-    "Dad's potato bake": {"kind": "side"},
-    "Simple Crudités": {"kind": "side"},
-    "Lebneh": {"kind": "side"},
-    "Ham and cheese sandwiches": {"kind": "lunch"},
-    "Porridge": {"kind": "breakfast"},
-    "Pikelets": {"kind": "breakfast"},
-    "Mr Bakeman spiced lemonade": {"kind": "drink"},
-    "Dumplings and brocolli": {"protein": "veg"},
-    "Egg Pie": {"protein": "veg"},
-    "Pizza": {"protein": "veg"},
-    "Veg stew": {"protein": "veg"},
-    "Tomato pasta": {"protein": "veg"}
+    "Coleslaw": {
+      "kind": "side"
+    },
+    "Dad's potato bake": {
+      "kind": "side"
+    },
+    "Simple Crudités": {
+      "kind": "side"
+    },
+    "Lebneh": {
+      "kind": "side"
+    },
+    "Ham and cheese sandwiches": {
+      "kind": "lunch"
+    },
+    "Porridge": {
+      "kind": "breakfast"
+    },
+    "Pikelets": {
+      "kind": "breakfast"
+    },
+    "Mr Bakeman spiced lemonade": {
+      "kind": "drink"
+    },
+    "Pizza": {
+      "protein": "pork"
+    }
   }
 }

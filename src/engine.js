@@ -6,10 +6,20 @@ export const DAY_NAMES = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday'
 export const DAY_SHORT = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const COUNTABLE = new Set(['can', 'head', 'whole', 'punnet', 'bottle', 'loaf', 'packs']);
+// Things bought whole: the list rounds these up, and says what is left over.
+const WHOLE = new Set([...COUNTABLE, 'unit', 'cloves', 'piece', 'cube', 'bar', 'leaves', 'sticks']);
+const buyQty = (q, unit) => (WHOLE.has(unit) ? Math.ceil(q - 1e-9) : q);
 const PLURAL = { can: 'cans', head: 'heads', cup: 'cups', piece: 'pieces', punnet: 'punnets', bottle: 'bottles', loaf: 'loaves', bar: 'bars', slice: 'slices', cube: 'cubes', handful: 'handfuls', splash: 'splashes', sprinkle: 'sprinkles', pinch: 'pinches', pack: 'packs' };
 
 export function emptyWeek(start) {
   return { start, days: Array.from({ length: 7 }, () => ({ r: null, d: null, lock: false, second: false })), extras: [], adds: [], everyWeek: true };
+}
+
+// The Saturday on or before `date`: the week being eaten now.
+export function weekOf(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 1) % 7));
+  return d.toISOString().slice(0, 10);
 }
 
 // The Saturday that starts the shopping week containing or following `date`.
@@ -60,7 +70,7 @@ export function formatQty(q, unit) {
   return `${n} ${q > 1 && PLURAL[unit] ? PLURAL[unit] : unit}`;
 }
 
-export function makeEngine(deck) {
+export function makeEngine(deck, learned = []) {
   const G = deck.groceries, R = deck.recipes;
   const recipeIds = Object.keys(R);
   const dinners = recipeIds.filter((id) => R[id].k === 'dinner');
@@ -76,13 +86,15 @@ export function makeEngine(deck) {
 
   // ---- habits, from the saved plans -------------------------------------------------------
   const planned = {}, byDay = DAY_NAMES.map(() => ({}));
-  for (const p of deck.plans) p.days.forEach((id, i) => {
+  const plans = [...deck.plans, ...learned];
+  for (const p of plans) p.days.forEach((id, i) => {
+    if (!id || !R[id]) return;
     planned[id] = (planned[id] || 0) + 1;
     byDay[i][id] = (byDay[i][id] || 0) + 1;
   });
   const habits = byDay.map((counts, day) => {
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    return top && top[1] >= 2 ? { day, r: top[0], n: top[1], of: deck.plans.length } : null;
+    return top && top[1] >= 2 ? { day, r: top[0], n: top[1], of: plans.length } : null;
   });
 
   // ---- the shop ---------------------------------------------------------------------------
@@ -148,17 +160,34 @@ export function makeEngine(deck) {
     return { lines: all, fromFridge };
   }
 
-  // What to show on the list: meal quantities and the every-week amount added together where the units agree.
+  // What to show on the list. An every-week amount covers the same item for a meal rather than adding to it,
+  // as the household's own combined lists do. Things bought whole are rounded up.
   function qtyText(l) {
     const sums = { ...l.sums };
     if (l.weekly && l.weekly.q != null) {
       const u = l.weekly.unit || (G[l.g].u === 'unit' ? 'unit' : '');
-      sums[u] = (sums[u] || 0) + l.weekly.q;
+      sums[u] = u in sums ? Math.max(sums[u], l.weekly.q) : l.weekly.q;
     }
     if (l.added) { const u = G[l.g].u === 'unit' ? 'unit' : ''; sums[u] = (sums[u] || 0) + l.added.q; }
-    const bits = Object.entries(sums).map(([u, q]) => (u === '' ? `${formatNumber(q)} ${q === 1 ? 'pack' : 'packs'}` : formatQty(q, u)));
+    const bits = Object.entries(sums).map(([u, q]) => (u === '' ? formatNumber(q) : formatQty(buyQty(q, u), u)));
     if (!bits.length) return '';
     return bits.join(' + ') + (l.some ? ' + some' : '');
+  }
+
+  // Part-used cans, heads and punnets: what is left over, and the ones two meals finish between them.
+  function ends(mealLines) {
+    const loose = [], closed = [];
+    for (const l of mealLines) {
+      if (l.some) continue;
+      for (const [unit, q] of Object.entries(l.sums)) {
+        if (!COUNTABLE.has(unit)) continue;
+        const left = Math.ceil(q - 1e-9) - q;
+        const parts = l.parts.filter((p) => p.unit === unit && p.q != null);
+        if (left >= 0.2) loose.push({ g: l.g, name: l.name, left, unit });
+        else if (parts.length >= 2 && parts.some((p) => p.q % 1 > 0.01)) closed.push({ g: l.g, name: l.name, q, unit, by: parts.map((p) => p.label) });
+      }
+    }
+    return { loose, closed };
   }
 
   // ---- what the list alone hides ----------------------------------------------------------
@@ -188,24 +217,16 @@ export function makeEngine(deck) {
       if (slot.r && !slot.second) for (const inner of R[slot.r].in || []) inside.push({ day, r: slot.r, inner });
     });
     const onBoard = new Set(week.days.map((x) => x.r).filter(Boolean));
-    const loose = [];
-    for (const l of mealLines) {
-      if (l.some) continue;
-      for (const [unit, q] of Object.entries(l.sums)) {
-        if (!COUNTABLE.has(unit)) continue;
-        const left = Math.ceil(q - 1e-9) - q;
-        if (left < 0.2) continue;
-        const uses = dinners.filter((id) => !onBoard.has(id) && !needs[id] && R[id].i.some((ing) => ing.g === l.g && !ing.o));
-        loose.push({ g: l.g, name: l.name, left, unit, uses });
-      }
-    }
+    const { loose, closed } = ends(mealLines);
+    for (const l of loose) l.uses = dinners.filter((id) => !onBoard.has(id) && !needs[id] && R[id].i.some((ing) => ing.g === l.g && !ing.o));
+    const covered = mealLines.filter((l) => l.weekly);
     const habitNotes = [];
     week.days.forEach((slot, day) => {
       const h = habits[day];
       if (h && slot.r === h.r) habitNotes.push({ day, r: h.r, n: h.n, of: h.of, kept: true });
     });
     const flagged = s.lines.filter((l) => l.odd.length);
-    return { shared, chains, warnings, batches, inside, loose, habitNotes, flagged, fromFridge: s.fromFridge };
+    return { shared, chains, warnings, batches, inside, loose, closed, covered, habitNotes, flagged, fromFridge: s.fromFridge };
   }
 
   function stats(week, shopResult) {
@@ -220,53 +241,67 @@ export function makeEngine(deck) {
   // ---- the dealer -------------------------------------------------------------------------
   const STYLES = { usual: 'The usual', thrifty: 'Thrifty', wild: 'Wildcard' };
 
+  // Every deal tries to tell one story: a leftover chain, a batch cook with its free second night, or neither.
+  const STORY = { usual: [0.3, 0.2], thrifty: [0.45, 0.25], wild: [0.35, 0.25] };
+
   function deal(week, style = 'usual', rng = Math.random) {
-    const locked = week.days.map((s) => (s.lock && s.r ? { ...s } : null));
+    const keep = week.days.map((s) => !!(s.lock && s.r));
+    week.days.forEach((s, i) => { // a kept second night keeps its cook night too
+      if (!keep[i] || !s.second) return;
+      const cook = week.days.findIndex((x) => x.r === s.r && !x.second);
+      if (cook === -1) keep[i] = false; else keep[cook] = true;
+    });
+    const locked = week.days.map((s, i) => (keep[i] ? { ...s } : null));
     const taken = new Set(locked.filter(Boolean).map((s) => s.r));
     const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+    const roll = rng(), odds = STORY[style] || STORY.usual;
+    const story = roll < odds[0] ? 'chain' : roll < odds[0] + odds[1] ? 'batch' : 'none';
     let best = null;
-    const tries = 120;
-    for (let t = 0; t < tries; t++) {
-      const days = locked.map((s) => s || { r: null, d: null, lock: false, second: false });
+    for (let t = 0; t < 120; t++) {
+      const days = locked.map((s) => (s ? { ...s } : { r: null, d: null, lock: false, second: false }));
       const used = new Set(taken);
       const free = () => days.map((s, i) => (s.r ? -1 : i)).filter((i) => i >= 0);
-      // A leftover chain goes on consecutive days, cook first.
-      const chainSources = Object.keys(feeds).filter((id) => !used.has(id) && !used.has(feeds[id]));
-      if (chainSources.length && rng() < (style === 'thrifty' ? 0.8 : 0.45)) {
-        const src = pick(chainSources);
+      const weekendFirst = (spots) => { const w = spots.filter((i) => i <= 1); return w.length && rng() < 0.7 ? pick(w) : pick(spots); };
+      if (story === 'chain') { // cook first, leftovers the next day
+        const sources = Object.keys(feeds).filter((id) => !used.has(id) && !used.has(feeds[id]));
         const spots = free().filter((i) => i < 6 && !days[i + 1].r);
-        if (spots.length) {
-          const weekend = spots.filter((i) => i <= 1);
-          const i = weekend.length && rng() < 0.7 ? pick(weekend) : pick(spots);
+        if (sources.length && spots.length) {
+          const src = pick(sources), i = weekendFirst(spots);
           days[i].r = src; days[i + 1].r = feeds[src]; used.add(src); used.add(feeds[src]);
+        }
+      } else if (story === 'batch') { // cook once, eat again two days on
+        const batchers = dinners.filter((id) => R[id].b && !used.has(id));
+        const spots = free().filter((i) => free().some((j) => j > i + 1));
+        if (batchers.length && spots.length) {
+          const id = pick(batchers), i = weekendFirst(spots), j = free().find((x) => x > i + 1);
+          days[i].r = id; days[j] = { r: id, d: null, lock: false, second: true }; used.add(id);
         }
       }
       if (style === 'usual') for (const h of habits) {
-        if (h && !days[h.day].r && !used.has(h.r) && rng() < h.n / h.of) { days[h.day].r = h.r; used.add(h.r); }
+        if (h && !days[h.day].r && !used.has(h.r) && R[h.r].k === 'dinner' && rng() < (h.n / h.of) * 0.8) { days[h.day].r = h.r; used.add(h.r); }
       }
       for (const i of free()) {
-        if (days[i].r) continue; // taken meanwhile by a second night
-        const pool = dinners.filter((id) => !used.has(id) && !needs[id]);
-        if (!pool.length) break;
+        if (days[i].r) continue;
+        const count = {};
+        for (const s of days) if (s.r && !s.second) count[R[s.r].pr] = (count[R[s.r].pr] || 0) + 1;
+        const all = dinners.filter((id) => !used.has(id) && !needs[id]);
+        const pool = all.filter((id) => (count[R[id].pr] || 0) < 2);
+        const from = pool.length ? pool : all;
+        if (!from.length) break;
         let id;
         if (style === 'usual') {
-          const weights = pool.map((p) => 1 + 3 * (planned[p] || 0) + 6 * (byDay[i][p] || 0));
+          const weights = from.map((p) => 1 + 2 * (planned[p] || 0) + 4 * (byDay[i][p] || 0));
           let x = rng() * weights.reduce((a, b) => a + b, 0);
-          id = pool.find((p, k) => (x -= weights[k]) < 0);
+          id = from.find((p, k) => (x -= weights[k]) < 0);
         } else if (style === 'wild') {
-          const fresh = pool.filter((p) => !planned[p]);
-          id = pick(fresh.length && rng() < 0.85 ? fresh : pool);
-        } else id = pick(pool);
-        days[i].r = id || pool[0]; used.add(days[i].r);
-        const r = R[days[i].r];
-        if (r.b && rng() < 0.6) { // batch cook: its second night is free
-          const later = free().filter((j) => j > i + 1);
-          if (later.length) { const j = later[0]; days[j] = { r: days[i].r, d: null, lock: false, second: true }; }
-        }
+          const fresh = from.filter((p) => !planned[p]);
+          id = pick(fresh.length && rng() < 0.85 ? fresh : from);
+        } else id = pick(from);
+        days[i].r = id || from[0]; used.add(days[i].r);
       }
       if (style === 'thrifty' && t % 20 === 0) improve(week, days);
       const candidate = { ...week, days };
-      const score = scoreWeek(candidate, style) + rng() * (style === 'thrifty' ? 0.5 : 3);
+      const score = scoreWeek(candidate, style) + rng() * (style === 'thrifty' ? 2.5 : 4);
       if (!best || score > best.score) best = { days, score };
     }
     const dealt = { ...week, days: best.days };
@@ -296,19 +331,22 @@ export function makeEngine(deck) {
   const E_R = (id) => R[id] || {};
 
   function scoreWeek(week, style) {
-    let score = 0;
+    let score = 0, slow = 0, prev = null;
     const proteins = {};
-    let slow = 0;
     week.days.forEach((s, i) => {
-      if (!s.r || s.second) return;
+      if (!s.r || s.second) { prev = null; return; }
       const r = R[s.r];
       proteins[r.pr] = (proteins[r.pr] || 0) + 1;
+      if (prev === r.pr) score -= 3; // the same thing two nights running
+      prev = r.pr;
       if ((r.tg || []).includes('slow')) { slow++; if (i <= 1) score += 2; }
     });
-    for (const n of Object.values(proteins)) if (n > 2) score -= 8 * (n - 2);
+    for (const n of Object.values(proteins)) if (n > 2) score -= 40 * (n - 2);
     if (proteins.sea) score += 3;
     if (slow > 2) score -= 6 * (slow - 2);
-    const st = stats(week);
+    const s = shop(week), st = stats(week, s);
+    const e = ends(s.lines.filter((l) => l.tier === 'meals'));
+    score += e.closed.length * 3 - e.loose.length * 1.5;
     if (style === 'thrifty') score += st.saved * 4 - st.mealItems;
     else score += st.saved * 0.8;
     if (style === 'wild') score += Object.keys(proteins).length * 2;
@@ -322,14 +360,16 @@ export function makeEngine(deck) {
       const kept = ins.habitNotes.map((h) => `${R[h.r].n.toLowerCase()} on ${DAY_NAMES[h.day]}`);
       bits.push(kept.length ? `A week like your saved ones: ${kept.slice(0, 2).join(', ')}.` : 'A week weighted toward what you have planned before.');
     } else if (style === 'thrifty') {
-      bits.push(`Dealt for a short shop: ${st.mealItems} things to buy for seven dinners.`);
+      bits.push(`Dealt for a short shop: the dinners need only ${st.mealItems} things.`);
     } else {
       const fresh = week.days.filter((s) => s.r && !planned[s.r]).length;
-      bits.push(`${fresh} dinners that are in none of your saved plans.`);
+      bits.push(`${fresh} dinners that are in none of your saved weeks.`);
     }
-    if (ins.chains.length) bits.push(`${DAY_NAMES[ins.chains[0].from]}'s ${R[ins.chains[0].source].n.toLowerCase()} becomes ${DAY_NAMES[ins.chains[0].to]}'s lasagne.`);
-    if (st.saved > 0 && style !== 'thrifty') bits.push(`${st.saved} ${st.saved === 1 ? 'item is' : 'items are'} shared between meals.`);
-    else if (st.saved > 0) bits.push(`Sharing saves ${st.saved} ${st.saved === 1 ? 'line' : 'lines'}.`);
+    const batch = ins.batches.find((b) => b.second !== -1);
+    if (ins.chains.length) bits.push(`${DAY_NAMES[ins.chains[0].from]}'s ${R[ins.chains[0].source].n.toLowerCase()} becomes ${DAY_NAMES[ins.chains[0].to]}'s ${R[ins.chains[0].r].n.split(' ')[0].toLowerCase()}.`);
+    else if (batch) bits.push(`${R[batch.r].n.replace(/ \(.*\)$/, '')} is cooked once and feeds ${DAY_NAMES[batch.day]} and ${DAY_NAMES[batch.second]}.`);
+    else if (ins.closed.length) { const c = ins.closed[0]; bits.push(`${c.by.join(' and ')} finish ${formatQty(c.q, c.unit)} of ${c.name.toLowerCase()} between them.`); }
+    if (st.saved > 0) bits.push(`Sharing takes ${st.saved} ${st.saved === 1 ? 'line' : 'lines'} off the shop.`);
     return bits.join(' ');
   }
 
@@ -342,7 +382,6 @@ export function makeEngine(deck) {
     if (from.day != null && to.day != null) {
       if (from.day === to.day) return w;
       [w.days[from.day], w.days[to.day]] = [w.days[to.day], w.days[from.day]];
-      for (const s of w.days) s.lock = false;
       // A second night that lands before its cook night swaps roles with it.
       w.days.forEach((s, i) => {
         if (!s.second) return;
@@ -351,9 +390,9 @@ export function makeEngine(deck) {
         if (cook === -1) s.second = false;
       });
     } else if (from.deck && to.day != null) {
+      if (R[from.deck].k !== 'dinner' && R[from.deck].k !== 'side') { if (!w.extras.includes(from.deck)) w.extras.push(from.deck); return w; }
       const old = w.days[to.day];
       if (old.r && !old.second) clearSeconds(old.r);
-      if (R[from.deck].k !== 'dinner' && R[from.deck].k !== 'side') { if (!w.extras.includes(from.deck)) w.extras.push(from.deck); return w; }
       const dup = w.days.findIndex((s) => s.r === from.deck && !s.second);
       if (dup !== -1 && dup !== to.day) { clearSeconds(from.deck); w.days[dup] = blank(); }
       w.days[to.day] = { r: from.deck, d: null, lock: false, second: false };
@@ -438,5 +477,5 @@ export function makeEngine(deck) {
     };
   }
 
-  return { G, R, recipeIds, dinners, needs, feeds, planned, habits, shop, insights, stats, deal, move, addSecondNight, encode, decode, toIris, STYLES, unitOf };
+  return { G, R, recipeIds, dinners, needs, feeds, planned, habits, plansCount: plans.length, shop, insights, stats, deal, move, addSecondNight, encode, decode, toIris, STYLES, unitOf };
 }

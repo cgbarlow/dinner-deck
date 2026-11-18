@@ -1,9 +1,7 @@
-import { makeEngine, emptyWeek, weekStart, dayDate, rangeLabel, mulberry32, formatQty, DAY_NAMES, DAY_SHORT } from './engine.js';
+import { makeEngine, emptyWeek, weekStart, weekOf, dayDate, rangeLabel, mulberry32, formatQty, DAY_NAMES, DAY_SHORT } from './engine.js';
 
 const DECK = JSON.parse(document.getElementById('deck-data').textContent);
-const E = makeEngine(DECK);
-const { G, R } = E;
-const KEY = 'dinner-deck:v1';
+const KEY = 'dinner-deck:v2';
 const TAB = Math.random().toString(36).slice(2, 10);
 const IRIS = 'iris';
 const $ = (id) => document.getElementById(id);
@@ -46,78 +44,117 @@ const disk = {
   write(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* private window: carry on in memory */ } },
 };
 const saved = disk.read();
+saved.weeks = saved.weeks || {};
+const THIS_WEEK = weekOf(new Date()), NEXT_WEEK = weekStart(new Date());
+// Weeks already planned here teach the dealer, alongside the plans saved in Iris.
+const learned = Object.entries(saved.weeks).filter(([start, rec]) => start < THIS_WEEK && rec.rev > 0 && rec.week.days.some((d) => d.r)).map(([, rec]) => ({ days: rec.week.days.map((d) => (d.second ? null : d.r)) }));
+const E = makeEngine(DECK, learned);
+const { G, R } = E;
+const hasDinner = (rec) => !!rec && rec.week.days.some((d) => d.r);
 const S = {
-  start: weekStart(new Date()), week: null, ticks: new Set(), rev: 0,
-  style: saved.style || 'usual', view: 'week', filter: 'all', q: '', pickDay: null, why: '', open: new Set(), cloud: false,
+  start: hasDinner(saved.weeks[THIS_WEEK]) && !hasDinner(saved.weeks[NEXT_WEEK]) ? THIS_WEEK : NEXT_WEEK,
+  week: null, ticks: new Map(), rev: 0,
+  style: saved.style || 'usual', view: 'week', filter: 'all', q: '', pickDay: null, why: '', open: new Set(),
+  cloud: false, cloudHas: false, cloudError: false, offer: null, undo: [],
 };
 
 function seedFor(start) { return Number(start.replace(/-/g, '')); }
 function loadWeek(start) {
-  S.start = start;
-  const rec = (saved.weeks || {})[start];
+  const firstVisit = !Object.keys(saved.weeks).length;
+  S.start = start; S.undo = [];
+  const rec = saved.weeks[start];
   if (rec) {
     S.week = { ...emptyWeek(start), ...rec.week, start };
-    S.ticks = new Set(rec.ticks || []); S.rev = rec.rev || 0; S.why = '';
-  } else {
+    S.ticks = new Map(Object.entries(rec.ticks || {})); S.rev = rec.rev || 0; S.why = '';
+  } else if (firstVisit) {
     const dealt = E.deal(emptyWeek(start), 'usual', mulberry32(seedFor(start)));
-    S.week = dealt.week; S.ticks = new Set(); S.rev = 0;
+    S.week = dealt.week; S.ticks = new Map(); S.rev = 0;
     S.why = 'Dealt to get you started. ' + dealt.why;
+  } else {
+    S.week = emptyWeek(start); S.ticks = new Map(); S.rev = 0;
+    S.why = 'Nothing is planned for this week yet.';
   }
 }
 function persist() {
-  saved.weeks = saved.weeks || {};
-  saved.weeks[S.start] = { week: S.week, ticks: [...S.ticks], rev: S.rev };
-  const keep = Object.keys(saved.weeks).sort().slice(-8);
+  saved.weeks[S.start] = { week: S.week, ticks: Object.fromEntries(S.ticks), rev: S.rev };
+  const keep = Object.keys(saved.weeks).sort().slice(-12);
   for (const k of Object.keys(saved.weeks)) if (!keep.includes(k)) delete saved.weeks[k];
   saved.style = S.style;
   disk.write(saved);
 }
-function commit(week, why) {
+// Every change to the week goes through here, so every change can be undone.
+function commit(week, why, opts = {}) {
+  S.undo.push({ week: S.week, ticks: new Map(S.ticks), why: S.why });
+  if (S.undo.length > 30) S.undo.shift();
   S.week = week;
+  if (opts.clearTicks) S.ticks.clear();
   if (why !== undefined) S.why = why;
-  touched();
+  touched(!!opts.clearTicks);
   renderAll();
 }
-function touched() { S.rev = Date.now(); persist(); pushCloud(); }
+function undo() {
+  const prev = S.undo.pop();
+  if (!prev) return;
+  S.week = prev.week; S.ticks = prev.ticks; S.why = prev.why;
+  touched(true); renderAll(); toast('Undone.');
+}
+function touched(replace) { S.rev = Date.now(); persist(); queueWeek(replace); }
 
 // ---------------------------------------------------------------- shared across devices (artifact database)
-let db = null, unsub = null, writing = false, dirty = false, lastRev = 0, timer = 0;
+// One document per week. The plan is written as a whole; each tick is merged in on its own, so two people
+// shopping the same list do not undo each other.
+let db = null, unsub = null, chain = Promise.resolve(), pending = null, timer = 0;
 async function initCloud() {
   if (!window.claude || typeof window.claude.use !== 'function') return;
   try { db = await window.claude.use('db'); } catch { db = null; }
   if (db) subscribe();
 }
+const tickDoc = () => Object.fromEntries(S.ticks);
 function subscribe() {
   if (unsub) unsub();
   if (!db) return;
   const start = S.start;
+  let first = true;
+  S.cloudHas = false;
   try {
     unsub = db.doc('weeks/' + start).onSnapshot((snap) => {
       if (start !== S.start) return;
-      S.cloud = true; renderFoot();
-      if (!snap.exists || snap.metadata.hasPendingWrites) return;
+      const wasFirst = first; first = false;
+      S.cloud = true;
+      if (!snap.exists) { if (wasFirst && S.rev > 0) queueWeek(true); renderFoot(); return; }
+      S.cloudHas = true;
       const d = snap.data();
-      if ((d.tab === TAB && d.rev === lastRev) || (d.rev || 0) <= S.rev) return;
+      if (snap.metadata.hasPendingWrites || d.tab === TAB) { renderFoot(); return; }
+      if (wasFirst && S.rev > 0 && (d.rev || 0) < S.rev) { queueWeek(true); renderFoot(); return; } // this device has newer work to send
       S.week = { ...emptyWeek(start), days: d.days, extras: d.extras || [], adds: d.adds || [], everyWeek: d.everyWeek !== false, start };
-      S.ticks = new Set(d.ticks || []); S.rev = d.rev; S.why = '';
+      S.ticks = new Map(Object.entries(d.ticks || {}).filter(([, v]) => typeof v === 'string'));
+      S.rev = d.rev || 1; S.why = ''; S.undo = [];
       persist(); renderAll();
-    }, () => { db = null; S.cloud = false; renderFoot(); });
+    }, () => { S.cloud = false; renderFoot(); });
   } catch { db = null; }
 }
-function pushCloud() {
-  if (!db) return;
-  dirty = true; clearTimeout(timer); timer = setTimeout(flush, 700);
+function send(start, fn) {
+  chain = chain.then(() => fn(db.doc('weeks/' + start))).then(() => { S.cloudError = false; }, (e) => { S.cloudError = !(e && e.code === 'unavailable'); }).then(renderFoot);
 }
-async function flush() {
-  if (writing || !dirty || !db) return;
-  writing = true; dirty = false;
-  const body = { days: S.week.days, extras: S.week.extras, adds: S.week.adds, everyWeek: S.week.everyWeek, ticks: [...S.ticks], rev: S.rev, tab: TAB };
-  lastRev = body.rev;
-  try { await db.doc('weeks/' + S.start).set(body); } catch (e) {
-    if (e && e.code !== 'unavailable') { db = null; S.cloud = false; renderFoot(); } // a viewer who may not write keeps a private copy
-  }
-  writing = false;
-  if (dirty) flush();
+// The body is captured now, for the week it belongs to; changing week before it is sent cannot misdirect it.
+function queueWeek(replace) {
+  if (!db || S.rev === 0) return;
+  const plan = { days: S.week.days, extras: S.week.extras, adds: S.week.adds, everyWeek: S.week.everyWeek, rev: S.rev, tab: TAB };
+  const whole = replace || !S.cloudHas || (pending && pending.whole);
+  pending = { start: S.start, whole, body: whole ? { ...plan, ticks: tickDoc() } : plan };
+  clearTimeout(timer); timer = setTimeout(flush, 500);
+}
+function flush() {
+  clearTimeout(timer);
+  if (!pending || !db) return;
+  const { start, whole, body } = pending; pending = null;
+  if (start === S.start) S.cloudHas = true;
+  send(start, (ref) => (whole ? ref.set(body) : ref.update(body)));
+}
+function queueTick(g, value) {
+  if (!db) return;
+  if (!S.cloudHas || pending) { queueWeek(true); return; }
+  send(S.start, (ref) => ref.update({ ticks: { [g]: value }, rev: S.rev, tab: TAB }));
 }
 
 // ---------------------------------------------------------------- derived
@@ -125,6 +162,17 @@ let SHOP, INS, STATS, COLOR;
 function derive() {
   SHOP = E.shop(S.week); INS = E.insights(S.week, SHOP); STATS = E.stats(S.week, SHOP);
   COLOR = new Map(INS.shared.map((l, i) => [l.g, `var(--t${Math.min(i, 7)})`]));
+  // A tick is for the amount that was on the list when it was ticked. If the line has grown or gone, it comes off.
+  const now = new Map(SHOP.lines.map((l) => [l.g, l.qty]));
+  for (const [g, qty] of S.ticks) if (now.get(g) !== qty) S.ticks.delete(g);
+}
+const ticked = (l) => S.ticks.has(l.g);
+function keepFocus(fn) {
+  const a = document.activeElement, fk = a && a.dataset ? a.dataset.fk : null;
+  fn();
+  if (!fk) return;
+  const el = document.querySelector(`[data-fk="${fk}"]`) || (/^(x|lock|body):/.test(fk) && document.querySelector(`[data-fk="open:${fk.split(':')[1]}"]`));
+  if (el && el !== document.activeElement) el.focus({ preventScroll: true });
 }
 const toBuy = () => SHOP.lines.filter((l) => l.tier !== 'cupboard');
 const dayOf = (id) => S.week.days.findIndex((s) => s.r === id && !s.second);
@@ -151,11 +199,11 @@ function renderDeck() {
     if (E.needs[id]) tags.push(h('span', { class: 'tag', text: 'leftovers' }));
     if (r.b) tags.push(h('span', { class: 'tag', text: `×${r.b}` }));
     return h('li', null, h('button', {
-      class: 'pcard' + (at !== -1 || extra ? ' used' : ''), type: 'button', 'data-drag': 'deck', 'data-id': id,
+      class: 'pcard' + (at !== -1 || extra ? ' used' : ''), type: 'button', 'data-drag': 'deck', 'data-id': id, 'data-fk': 'card:' + id,
       onclick: () => (S.pickDay != null ? place(id, S.pickDay) : openRecipe(id)),
     }, pip(r.pr), h('span', { class: 'nm', text: r.n }), h('span', { class: 'tags' }, tags)));
   }));
-  if (!ids.length) list.append(h('li', { class: 'empty', text: `Nothing in the deck matches "${S.q}".` }));
+  if (!ids.length) list.append(h('li', { class: 'empty' }, S.q ? `Nothing matches "${S.q}"` : 'Nothing here', S.filter !== 'all' ? [' under this filter. ', h('button', { type: 'button', class: 'linkish', text: 'Search the whole deck', onclick: () => { S.filter = 'all'; renderDeck(); } })] : '.'));
   for (const b of document.querySelectorAll('#filters .chip')) b.setAttribute('aria-pressed', String(b.dataset.f === S.filter));
 }
 function place(id, day) {
@@ -163,6 +211,7 @@ function place(id, day) {
   S.pickDay = null;
   commit(E.move(S.week, { deck: id }, { day }), '');
   if (kind !== 'dinner' && kind !== 'side') toast(`${R[id].n} is not a dinner, so it went to this week's extras.`);
+  else if (isPhone()) toast(`${R[id].n} is on ${DAY_NAMES[day]}.`, true);
   if (isPhone()) setView('week');
 }
 
@@ -171,7 +220,7 @@ function metaFor(slot, day) {
   const r = R[slot.r], bits = [];
   if (slot.second) return [h('span', { text: 'Second night. Already cooked, nothing to buy.' })];
   const warn = INS.warnings.find((w) => w.day === day);
-  if (warn) bits.push(h('span', { class: 'warn', text: warn.why === 'missing' ? `Needs leftovers from ${R[warn.needs].n.toLowerCase()}, which is not on the board.` : `Needs leftovers from ${DAY_NAMES[warn.at]}. Move it later in the week.` }));
+  if (warn) bits.push(h('span', { class: 'warn', text: warn.why === 'missing' ? `Needs leftovers from ${R[warn.needs].n.toLowerCase()}, which is not on the table.` : `Needs leftovers from ${DAY_NAMES[warn.at]}. Move it later in the week.` }));
   const chainTo = INS.chains.find((c) => c.from === day), chainFrom = INS.chains.find((c) => c.to === day);
   if (chainTo) bits.push(h('span', { text: `Cook once. Leftovers become ${DAY_NAMES[chainTo.to]}'s dinner.` }));
   if (chainFrom) bits.push(h('span', { text: `Made from ${DAY_NAMES[chainFrom.from]}'s leftovers.` }));
@@ -188,6 +237,9 @@ function metaFor(slot, day) {
 }
 function renderWeek() {
   $('range').textContent = rangeLabel(S.start).replace(/ \d{4}$/, '');
+  $('when').textContent = S.start === THIS_WEEK ? 'this week' : S.start === NEXT_WEEK ? 'the coming week' : S.start < THIS_WEEK ? 'a past week' : 'further ahead';
+  $('undo').disabled = !S.undo.length;
+  $('offer').hidden = !S.offer;
   $('why').textContent = S.why;
   for (const b of document.querySelectorAll('#styles button')) b.setAttribute('aria-pressed', String(b.dataset.s === S.style));
   $('days').replaceChildren(...S.week.days.map((slot, i) => {
@@ -195,7 +247,7 @@ function renderWeek() {
     const label = h('div', { class: 'd' }, h('b', { text: DAY_SHORT[i] }), h('span', { text: String(date) }));
     let inner;
     if (!slot.r || !R[slot.r]) {
-      inner = h('div', { class: 'slot', 'data-drop-day': i }, h('button', { class: 'open', type: 'button', text: S.pickDay === i ? 'Pick a card from the deck…' : 'Drop a card here, or choose one', onclick: () => startPick(i) }));
+      inner = h('div', { class: 'slot', 'data-drop-day': i }, h('button', { class: 'open', type: 'button', 'data-fk': 'open:' + i, text: S.pickDay === i ? 'Pick a card from the deck…' : 'Drop a card here, or choose one', onclick: () => startPick(i) }));
     } else {
       const r = R[slot.r];
       const threads = slot.second ? [] : INS.shared.filter((l) => l.days.includes(i)).slice(0, 3).map((l) => h('button', {
@@ -205,11 +257,11 @@ function renderWeek() {
       }));
       const tools = [];
       if (r.b && !slot.second && !INS.batches.find((b) => b.day === i && b.second !== -1)) tools.push(h('button', { class: 'tool', type: 'button', title: 'Add its second night', 'aria-label': `Add a second night of ${r.n}`, text: '×2', style: 'font-weight:700;font-size:13px', onclick: () => { const w = E.addSecondNight(S.week, i); w ? commit(w, 'One cook, two dinners. The second night adds nothing to the shop.') : toast('No free day left for a second night.'); } }));
-      tools.push(h('button', { class: 'tool', type: 'button', svg: LOCK, 'aria-pressed': String(!!slot.lock), title: slot.lock ? 'Kept when you deal again' : 'Keep this when dealing again', 'aria-label': `Keep ${r.n} on ${DAY_NAMES[i]} when dealing again`, onclick: () => { const w = { ...S.week, days: S.week.days.map((s, k) => (k === i ? { ...s, lock: !s.lock } : s)) }; commit(w); } }));
-      tools.push(h('button', { class: 'tool', type: 'button', text: '×', style: 'font-size:20px', title: 'Back to the deck', 'aria-label': `Take ${r.n} off ${DAY_NAMES[i]}`, onclick: () => commit(E.move(S.week, { day: i }, { deck: true }), '') }));
+      tools.push(h('button', { class: 'tool', type: 'button', 'data-fk': 'lock:' + i, svg: LOCK, 'aria-pressed': String(!!slot.lock), title: slot.lock ? 'Kept when you deal again' : 'Keep this when dealing again', 'aria-label': `Keep ${r.n} on ${DAY_NAMES[i]} when dealing again`, onclick: () => { const w = { ...S.week, days: S.week.days.map((s, k) => (k === i ? { ...s, lock: !s.lock } : s)) }; commit(w); } }));
+      tools.push(h('button', { class: 'tool', type: 'button', 'data-fk': 'x:' + i, text: '×', style: 'font-size:20px', title: 'Back to the deck', 'aria-label': `Take ${r.n} off ${DAY_NAMES[i]}`, onclick: () => { commit(E.move(S.week, { day: i }, { deck: true }), ''); toast(`${r.n} is back in the deck.`, true); } }));
       inner = h('div', { class: 'slot', 'data-drop-day': i }, h('div', { class: 'dcard' + (slot.second ? ' second' : ''), 'data-drag': 'day', 'data-day': i, 'data-id': slot.r },
         pip(r.pr),
-        h('button', { class: 'body', type: 'button', 'aria-label': `${DAY_NAMES[i]}: ${r.n}. Open recipe.`, onclick: () => openRecipe(slot.r, i) }, h('span', { class: 'nm', text: r.n }), h('span', { class: 'meta' }, metaFor(slot, i))),
+        h('button', { class: 'body', type: 'button', 'data-fk': 'body:' + i, 'aria-label': `${DAY_NAMES[i]}: ${r.n}. Open recipe.`, onclick: () => openRecipe(slot.r, i) }, h('span', { class: 'nm', text: r.n }), h('span', { class: 'meta' }, metaFor(slot, i))),
         h('div', { class: 'threads' }, threads),
         h('div', { class: 'tools' }, tools)));
     }
@@ -225,11 +277,13 @@ function renderNotes() {
   const out = [];
   const b = (t) => h('b', { text: t });
   for (const c of INS.chains) out.push(h('li', { class: 'note chain' }, b('Leftover chain. '), `${DAY_NAMES[c.from]}'s ${R[c.source].n.toLowerCase()} becomes ${DAY_NAMES[c.to]}'s lasagne. One cook, two dinners, and the pork for the lasagne is not on the list.`));
-  for (const w of INS.warnings) out.push(h('li', { class: 'note chain' }, b(`${R[w.r].n} has nothing to be made from. `), w.why === 'missing' ? 'Put ' : 'Move it after ', h('button', { type: 'button', text: R[w.needs].n, onclick: () => openRecipe(w.needs) }), w.why === 'missing' ? ' on an earlier day.' : '.'));
+  for (const w of INS.warnings) out.push(h('li', { class: 'note chain' }, b(`${R[w.r].n} has nothing to be made from. `), w.why === 'order' ? 'Move it after ' : w.day === 0 ? 'Move it later in the week and put ' : 'Put ', h('button', { type: 'button', text: R[w.needs].n, onclick: () => openRecipe(w.needs) }), w.why === 'order' ? '.' : w.day === 0 ? ' before it.' : ' on an earlier day.'));
   if (INS.shared.length) {
     const top = INS.shared.slice(0, 5).map((l) => `${l.name.toLowerCase()} (${l.days.length} meals)`).join(', ');
-    out.push(h('li', { class: 'note' }, b(`${INS.shared.length} ${INS.shared.length === 1 ? 'thing does' : 'things do'} double duty. `), `${top}${INS.shared.length > 5 ? ' and more' : ''}. Bought once, the shop is ${STATS.saved} ${STATS.saved === 1 ? 'line' : 'lines'} shorter.`));
+    out.push(h('li', { class: 'note' }, b(`${INS.shared.length} ${INS.shared.length === 1 ? 'thing does' : 'things do'} double duty. `), `${top}${INS.shared.length > 5 ? ' and more' : ''}. Bought once, which takes ${STATS.saved} ${STATS.saved === 1 ? 'line' : 'lines'} off the shop.`));
   }
+  for (const c of INS.closed) out.push(h('li', { class: 'note' }, b('Nothing wasted. '), `${c.by.join(' and ')} finish ${formatQty(c.q, c.unit)} of ${c.name.toLowerCase()} between them.`));
+  if (INS.covered.length) out.push(h('li', { class: 'note' }, b('Already on your every-week list. '), `${INS.covered.map((l) => l.name.toLowerCase()).join(', ')}. Counted once, not twice.`));
   for (const l of INS.loose.slice(0, 3)) {
     const left = `${formatQty(l.left, l.unit)} of ${l.name.toLowerCase()}`;
     const uses = l.uses.slice(0, 2);
@@ -267,7 +321,7 @@ function tween(el, to) {
   requestAnimationFrame(step);
 }
 function itemRow(l) {
-  const done = S.ticks.has(l.g), open = S.open.has(l.g), id = 'tick-' + l.g;
+  const done = ticked(l), open = S.open.has(l.g), id = 'tick-' + l.g;
   const badges = [];
   if (l.days.length >= 2) badges.push(h('span', { class: 'badge share', style: `--tc:${COLOR.get(l.g) || 'var(--rust)'}`, text: `${l.days.length} meals` }));
   if (l.weekly) badges.push(h('span', { class: 'badge weekly', text: 'every week' }));
@@ -275,21 +329,21 @@ function itemRow(l) {
   if (l.odd.length) badges.push(h('span', { class: 'badge odd', text: 'check amount', title: l.odd.join('; ') }));
   const from = [];
   for (const p of l.parts) from.push(`${p.label}${p.q != null ? ' ' + formatQty(p.q, p.unit) : ''}${p.opt ? ' (optional)' : ''}`);
-  if (l.weekly) from.push('every week' + (l.weekly.q != null ? ' ' + formatQty(l.weekly.q, l.weekly.unit) : '') + (l.weekly.note ? `, ${l.weekly.note}` : ''));
+  if (l.weekly) from.push('every week' + (l.weekly.q != null ? ' ' + formatQty(l.weekly.q, l.weekly.unit) : '') + (l.weekly.note ? `, ${l.weekly.note}` : '') + (l.parts.length ? ', which covers the meals' : ''));
   if (l.added) from.push(`added by hand ×${l.added.q}`);
   const detail = h('div', { class: 'detail', hidden: !open },
     l.product && h('span', { class: 'product', text: l.product }),
     h('span', { class: 'from', text: [...from, ...l.notes, ...l.odd.map((o) => `Iris: ${o}, which looks wrong`)].join(' · ') }));
   return h('li', { class: 'item' + (done ? ' done' : '') + (open ? ' open' : ''), 'data-g': l.g },
     h('div', { class: 'main' },
-      h('input', { type: 'checkbox', id, checked: done, 'aria-label': `${l.name}${l.qty ? ', ' + l.qty : ''}`, onchange: (e) => { e.target.checked ? S.ticks.add(l.g) : S.ticks.delete(l.g); touched(); renderShop(); renderTabs(); } }),
-      h('button', { class: 'more', type: 'button', 'aria-expanded': String(open), onclick: () => { open ? S.open.delete(l.g) : S.open.add(l.g); renderShop(); } }, h('span', { class: 'nm', text: l.name }), badges),
+      h('input', { type: 'checkbox', id, 'data-fk': 'tick:' + l.g, checked: done, 'aria-label': `${l.name}${l.qty ? ', ' + l.qty : ''}`, onchange: (e) => { e.target.checked ? S.ticks.set(l.g, l.qty) : S.ticks.delete(l.g); S.rev = Date.now(); persist(); queueTick(l.g, e.target.checked ? l.qty : false); refreshShop(); } }),
+      h('button', { class: 'more', type: 'button', 'data-fk': 'more:' + l.g, 'aria-expanded': String(open), onclick: () => { open ? S.open.delete(l.g) : S.open.add(l.g); refreshShop(); } }, h('span', { class: 'nm', text: l.name }), badges),
       h('span', { class: 'qty', text: l.qty }),
       l.added && h('button', { class: 'x', type: 'button', text: '×', 'aria-label': `Remove ${l.name} that you added`, onclick: () => commit({ ...S.week, adds: S.week.adds.filter((a) => a.g !== l.g) }) })),
     detail);
 }
 function renderShop() {
-  const buy = toBuy(), got = buy.filter((l) => S.ticks.has(l.g)).length;
+  const buy = toBuy(), got = buy.filter((l) => ticked(l)).length;
   tween($('n-items'), buy.length);
   $('n-aisles').textContent = String(STATS.aisles);
   $('n-saved').hidden = STATS.saved < 1;
@@ -302,7 +356,7 @@ function renderShop() {
     const lines = buy.filter((l) => l.aisle === a);
     if (!lines.length) return;
     lines.sort((x, y) => S.ticks.has(x.g) - S.ticks.has(y.g) || x.name.localeCompare(y.name));
-    const left = lines.filter((l) => !S.ticks.has(l.g)).length;
+    const left = lines.filter((l) => !ticked(l)).length;
     sections.push(h('section', { class: 'aisle' }, h('div', { class: 'aisle-h' }, h('h3', { style: 'font:inherit', text: name }), h('span', { text: left ? `${left} to get` : 'done' })), h('ul', { class: 'items' }, lines.map(itemRow))));
   });
   if (!buy.length) sections.push(h('p', { class: 'empty', text: 'Nothing to buy yet. Put a dinner on the table and the list writes itself.' }));
@@ -312,10 +366,11 @@ function renderShop() {
   $('list').replaceChildren(...sections);
 }
 function renderFoot() {
-  $('sync').textContent = `${S.cloud ? 'This week is shared with everyone who can open this page.' : 'This week is saved on this device.'} Recipes read from Iris on ${readDate()}.`;
+  const where = S.cloudError ? 'The shared copy could not be updated just now. This device has the latest and will try again on the next change.' : S.cloud ? 'This week is shared with everyone who can open this page.' : 'This week is saved on this device.';
+  $('sync').textContent = `${where} Recipes read from Iris on ${readDate()}.`;
 }
 function renderTabs() {
-  const buy = toBuy(), left = buy.filter((l) => !S.ticks.has(l.g)).length;
+  const buy = toBuy(), left = buy.filter((l) => !ticked(l)).length;
   $('tab-week-n').textContent = `${S.week.days.filter((s) => s.r).length} of 7`;
   $('tab-deck-n').textContent = `${E.recipeIds.length} cards`;
   $('tab-shop-n').textContent = `${left} to get`;
@@ -327,7 +382,8 @@ function setView(v) {
   if (v === 'shop' && isPhone() && navigator.wakeLock) navigator.wakeLock.request('screen').then((w) => { wake = w; }).catch(() => {});
   else if (wake) { wake.release().catch(() => {}); wake = null; }
 }
-function renderAll() { derive(); renderDeck(); renderWeek(); renderShop(); renderFoot(); renderTabs(); }
+function renderAll() { keepFocus(() => { derive(); renderDeck(); renderWeek(); renderShop(); renderFoot(); renderTabs(); }); }
+function refreshShop() { keepFocus(() => { renderShop(); renderTabs(); }); }
 
 // add anything from the grocery catalogue
 const catalogue = Object.keys(G).filter((g) => !G[g].l).sort((a, b) => G[a].n.localeCompare(G[b].n));
@@ -336,9 +392,9 @@ function renderSuggest() {
   const q = $('add').value.trim().toLowerCase(), box = $('suggest');
   sugIds = q ? catalogue.filter((g) => G[g].n.toLowerCase().includes(q)).sort((a, b) => G[a].n.toLowerCase().indexOf(q) - G[b].n.toLowerCase().indexOf(q)).slice(0, 8) : [];
   sugCur = Math.min(sugCur, Math.max(0, sugIds.length - 1));
-  box.hidden = !q;
+  box.hidden = !q; $('add').setAttribute('aria-expanded', String(!!q));
   box.replaceChildren(...sugIds.map((g, i) => h('li', null, h('button', { type: 'button', class: i === sugCur ? 'cur' : '', onclick: () => addItem(g) }, h('span', { text: G[g].n }), h('small', { text: DECK.aisles[G[g].a] })))));
-  if (q && !sugIds.length) box.append(h('li', { class: 'empty', style: 'padding:10px', text: `"${$('add').value.trim()}" is not one of the ${catalogue.length} groceries in Iris.` }));
+  if (q && !sugIds.length) box.append(h('li', { class: 'empty', style: 'padding:10px', text: `"${$('add').value.trim()}" is not among your groceries in Iris. Add it there first.` }));
 }
 function addItem(g) {
   const adds = S.week.adds.map((a) => ({ ...a }));
@@ -360,13 +416,14 @@ function openRecipe(id, dayHint) {
   const r = R[id];
   const at = dayHint != null ? dayHint : dayOf(id);
   const slot = at !== -1 ? S.week.days[at] : null;
+  const scale = slot && !slot.second ? (slot.d || r.sv) / r.sv : 1;
   const rows = [];
   let sec = null;
   for (const ing of r.i) {
     if ((ing.h || '') !== (sec || '')) { sec = ing.h || ''; if (sec) rows.push(h('li', { class: 'sec', text: sec })); }
     const g = G[ing.g], unit = E.unitOf(ing);
     const extra = [ing.t, ing.o && 'optional', ing.alt && `or ${G[ing.alt].n.toLowerCase()}`, ing.odd && 'this amount looks wrong in Iris'].filter(Boolean).join(', ');
-    rows.push(h('li', { class: 'q', text: ing.q != null ? formatQty(ing.q, unit) : '' }), h('li', { class: 'n' }, g.n, extra && h('small', { text: ` (${extra})` })));
+    rows.push(h('li', { class: 'q', text: ing.q != null ? formatQty(ing.q * scale, unit) : '' }), h('li', { class: 'n' }, g.n, extra && h('small', { text: ` (${extra})` })));
   }
   for (const x of r.x || []) rows.push(h('li', { class: 'q' }), h('li', { class: 'n', text: x }));
   const steps = [], paras = [], after = [];
@@ -377,7 +434,7 @@ function openRecipe(id, dayHint) {
     else if (line.startsWith('- ')) after.push(h('p', null, '• ', inline(line.slice(2))));
     else (steps.length ? after : paras).push(h('p', null, inline(line)));
   }
-  const facts = [`Serves ${r.sv}`, PIP_NAMES[r.pr].toLowerCase(), ...(r.tg || []), r.k !== 'dinner' && KIND_LABEL[r.k], E.planned[id] && `in ${E.planned[id]} of ${DECK.plans.length} saved weeks`].filter(Boolean).join(' · ');
+  const facts = [`Serves ${r.sv}`, PIP_NAMES[r.pr].toLowerCase(), ...(r.tg || []), r.k !== 'dinner' && KIND_LABEL[r.k], E.planned[id] && `in ${E.planned[id]} of ${E.plansCount} saved weeks`].filter(Boolean).join(' · ');
   const isDinner = r.k === 'dinner' || r.k === 'side';
   const puton = isDinner ? h('div', { class: 'puton', role: 'group', 'aria-label': 'Put on a day' }, DAY_SHORT.map((d, i) => h('button', {
     type: 'button', class: i === at ? 'here' : '', text: d, 'aria-label': `Put on ${DAY_NAMES[i]}`, 'aria-pressed': String(i === at),
@@ -392,7 +449,7 @@ function openRecipe(id, dayHint) {
       h('output', { id: 'diners', text: String(slot.d || r.sv) }),
       h('button', { type: 'button', text: '+', 'aria-label': 'One more', onclick: () => setDiners(at, 1, id) }),
       h('span', { class: 'fine', text: `The recipe serves ${r.sv}. The shop scales to match.` }))),
-    h('div', null, h('h3', { text: 'Ingredients' }), h('ul', { class: 'ing' }, rows)),
+    h('div', null, h('h3', { text: scale === 1 ? 'Ingredients' : `Ingredients for ${slot.d}` }), h('ul', { class: 'ing' }, rows)),
     (steps.length || paras.length) ? [h('div', null, h('h3', { text: 'Method' }), paras, steps.length ? h('ol', { class: 'method' }, steps) : null), after.length ? h('div', { class: 'after' }, after) : null] : h('p', { class: 'fine', text: 'No method is written down in Iris for this one.' }),
   ];
   openSheet([
@@ -400,7 +457,7 @@ function openRecipe(id, dayHint) {
     h('div', { class: 'sheet-body' }, body),
     h('div', { class: 'sheet-foot' },
       h('a', { href: `${DECK.iris.base}/views/${id}`, target: '_blank', rel: 'noopener', text: 'Open in Iris' }),
-      slot && h('button', { class: 'ghost', type: 'button', style: 'margin-left:auto', text: 'Take off the table', onclick: () => { closeSheet(); commit(E.move(S.week, { day: at }, { deck: true }), ''); } })),
+      slot && h('button', { class: 'ghost', type: 'button', style: 'margin-left:auto', text: 'Take off the table', onclick: () => { closeSheet(); commit(E.move(S.week, { day: at }, { deck: true }), ''); toast(`${r.n} is back in the deck.`, true); } })),
   ]);
 }
 function setDiners(day, delta, id) {
@@ -408,7 +465,8 @@ function setDiners(day, delta, id) {
   const d = Math.max(1, Math.min(16, (slot.d || r.sv) + delta));
   S.week = { ...S.week, days: S.week.days.map((s, k) => (k === day ? { ...s, d: d === r.sv ? null : d } : s)) };
   touched(); renderAll();
-  const out = $('diners'); if (out) out.textContent = String(d);
+  openRecipe(id, day);
+  const again = document.querySelector(`#sheet .stepper button[aria-label="${delta > 0 ? 'One more' : 'One fewer'}"]`); if (again) again.focus();
 }
 
 // ---------------------------------------------------------------- what the deck knows
@@ -420,6 +478,11 @@ function openFacts() {
   const odd = E.recipeIds.flatMap((id) => R[id].i.filter((i) => i.odd).map((i) => ({ id, text: `${formatQty(i.q, E.unitOf(i))} of ${G[i.g].n.toLowerCase()}` })));
   const bare = E.recipeIds.filter((id) => R[id].i.every((i) => i.q == null));
   const noMethod = E.recipeIds.filter((id) => !R[id].m).length;
+  const stem = (n) => n.toLowerCase().replace(/[^a-z]/g, '').replace(/s$/, '').replace(/ss/g, 's').replace(/tt/g, 't');
+  const byStem = {};
+  for (const g of Object.keys(G)) (byStem[stem(G[g].n)] = byStem[stem(G[g].n)] || new Set()).add(G[g].n);
+  const twins = Object.values(byStem).map((set) => [...set]).filter((names) => names.length > 1 || false);
+  const sameName = Object.entries(Object.values(G).reduce((m, g) => { m[g.n] = (m[g.n] || 0) + 1; return m; }, {})).filter(([, n]) => n > 1).map(([n]) => `${n} (twice)`);
   const link = (id, text) => h('button', { type: 'button', class: 'linkish', text: text || R[id].n, onclick: () => openRecipe(id) });
   const list = (ids) => ids.flatMap((id, k) => [k ? ', ' : '', link(id)]);
   openSheet([
@@ -428,11 +491,12 @@ function openFacts() {
       h('p', { text: `Read from Iris on ${readDate()}: ${E.recipeIds.length} recipes, ${E.dinners.length} of them dinners, drawing on ${Object.keys(uses).length} of your ${Object.keys(G).length} groceries.` }),
       h('div', null, h('h3', { text: 'What your cooking runs on' }), h('ol', { class: 'rank' }, top.map(([g, n]) => h('li', null, h('span', { text: G[g].n }), h('span', { class: 'fine', text: `${n} recipes` })))),
         h('p', { class: 'fine', text: 'Seasonings left out. A week built around the top of this list is a short shop, which is what Thrifty deals.' })),
-      h('div', null, h('h3', { text: 'Habits in your saved weeks' }), h('p', null, E.habits.filter(Boolean).length ? E.habits.filter(Boolean).flatMap((x, k) => [k ? '; ' : '', link(x.r), ` on ${DAY_NAMES[x.day]} in ${x.n} of ${x.of}`]) : 'No repeats yet.', '. Three saved weeks is a small sample. The usual deal leans on it anyway.')),
+      h('div', null, h('h3', { text: 'Habits in your saved weeks' }), h('p', null, E.habits.filter(Boolean).length ? E.habits.filter(Boolean).flatMap((x, k) => [k ? '; ' : '', link(x.r), ` on ${DAY_NAMES[x.day]} in ${x.n} of ${x.of}`]) : 'No repeats yet.', `. That is from ${DECK.plans.length} weeks saved in Iris${learned.length ? ` and ${learned.length} planned here` : ''}: a small sample, and the usual deal leans on it anyway. Every week you plan here adds to it.`)),
       h('div', null, h('h3', { text: `Never on a saved plan (${never.length} of ${E.dinners.length} dinners)` }), h('p', null, list(never), '. Wildcard deals from these.')),
       h('div', null, h('h3', { text: 'Worth tidying in Iris' }),
         h('p', null, `${odd.length} quantities cannot be right for their unit, usually a count typed against grams. They are left out of shop totals: `, odd.flatMap((o, k) => [k ? '; ' : '', link(o.id), ` (${o.text})`]), '.'),
         h('p', null, `${bare.length} recipes list ingredients with no amounts at all: `, list(bare), '. The shop shows those lines without a quantity.'),
+        (twins.length || sameName.length) ? h('p', { text: `Groceries that look like the same thing under two names: ${[...twins.map((t) => t.join(' and ')), ...sameName].join('; ')}. Each gets its own line on the list until they are merged in Iris.` }) : null,
         h('p', { class: 'fine', text: `${noMethod} recipes have no method written down. Iris's own shopping-list aggregation skips lines without a quantity and amounts typed as text like 1/2; this page keeps them.` }))),
   ]);
 }
@@ -445,7 +509,7 @@ async function copy(text, okMessage) {
 function copyList() {
   const lines = [`Shopping, ${rangeLabel(S.start)}`];
   DECK.aisles.forEach((name, a) => {
-    const ls = toBuy().filter((l) => l.aisle === a && !S.ticks.has(l.g));
+    const ls = toBuy().filter((l) => l.aisle === a && !ticked(l));
     if (ls.length) lines.push('', name.toUpperCase(), ...ls.map((l) => `- ${l.name}${l.qty ? ' ' + l.qty : ''}`));
   });
   const text = lines.join('\n');
@@ -487,32 +551,49 @@ function irisError(e, wrote) {
     : 'Could not reach Iris just now. Nothing was written.';
 }
 async function openSave() {
-  const out = E.toIris(S.week, S.ticks);
+  const out = E.toIris(S.week, new Set(S.ticks.keys()));
   const empty = S.week.days.every((s) => !s.r);
   let mcp = null;
   try { mcp = window.claude && window.claude.use ? await Promise.race([window.claude.use('mcp'), new Promise((r) => setTimeout(() => r(null), 4000))]) : null; } catch { mcp = null; }
   const status = h('div', { id: 'save-status', role: 'status', hidden: true });
   const goBtn = h('button', { class: 'go', type: 'button', style: 'flex:0 1 auto;padding:0 18px', text: 'Write both to Iris', disabled: empty || !mcp || null });
   const say = (text, ok) => { status.hidden = false; status.className = 'status' + (ok ? ' ok' : ''); status.replaceChildren(...(Array.isArray(text) ? text : [text])); };
+  let allowCopies = false;
   goBtn.addEventListener('click', async () => {
-    goBtn.disabled = true; say('Writing to Iris…', true);
+    goBtn.disabled = true; say('Checking what is already in Iris…', true);
     let wrote = false;
+    const jobs = [
+      { set: DECK.iris.mealPlansSet, name: out.planName, description: out.planDescription, md: out.planMarkdown },
+      { set: DECK.iris.shoppingListsSet, name: out.listName, description: out.listDescription, md: out.listMarkdown },
+    ];
+    const rows = (payload) => (Array.isArray(payload) ? payload : (payload && (payload.result || payload.items || payload.packages || payload.diagrams)) || []);
     try {
+      // Read first: find the dated package in each set, and anything already saved under these names.
+      const already = [];
+      for (const job of jobs) {
+        const tree = rows((await mcp.callTool(IRIS, 'package_hierarchy', { set_id: job.set }, { cache: false })).payload);
+        job.pkg = tree.find((n) => n && n.name === out.packageName) || null;
+        if (job.pkg) {
+          const inside = rows((await mcp.callTool(IRIS, 'list_diagrams', { set_id: job.set, parent_package_id: job.pkg.id, page_size: 100 }, { cache: false })).payload);
+          if (inside.some((d) => d && d.name === job.name && !d.is_deleted)) already.push(job.name);
+        }
+      }
+      if (already.length && !allowCopies) {
+        allowCopies = true; goBtn.textContent = 'Write new copies anyway'; goBtn.disabled = false;
+        say(`${already.join(' and ')} ${already.length === 1 ? 'is' : 'are'} already in Iris for this week. Iris keeps both if you write again, so the old ${already.length === 1 ? 'one stays' : 'ones stay'} until you remove ${already.length === 1 ? 'it' : 'them'} there.`, false);
+        return;
+      }
+      say('Writing to Iris…', true);
       const made = [];
-      for (const job of [
-        { set: DECK.iris.mealPlansSet, name: out.planName, description: out.planDescription, md: out.planMarkdown },
-        { set: DECK.iris.shoppingListsSet, name: out.listName, description: out.listDescription, md: out.listMarkdown },
-      ]) {
-        const tree = (await mcp.callTool(IRIS, 'package_hierarchy', { set_id: job.set }, { cache: false })).payload;
-        const nodes = Array.isArray(tree) ? tree : (tree && (tree.result || tree.packages)) || [];
-        let pkg = nodes.find((n) => n && n.name === out.packageName);
-        if (!pkg) { pkg = (await mcp.callTool(IRIS, 'create_package', { name: out.packageName, set_id: job.set })).payload; wrote = true; }
-        const res = (await mcp.callTool(IRIS, 'create_diagram', { set_id: job.set, name: job.name, description: job.description, diagram_type: 'smart_markdown', notation: 'markdown', parent_package_id: pkg && pkg.id, data: { markdown_source: job.md } })).payload;
+      for (const job of jobs) {
+        if (!job.pkg) { job.pkg = (await mcp.callTool(IRIS, 'create_package', { name: out.packageName, set_id: job.set })).payload; wrote = true; }
+        const res = (await mcp.callTool(IRIS, 'create_diagram', { set_id: job.set, name: job.name, description: job.description, diagram_type: 'smart_markdown', notation: 'markdown', parent_package_id: job.pkg && job.pkg.id, data: { markdown_source: job.md } })).payload;
         wrote = true;
         if (res && res.error) throw { code: 'tool_error', message: String(res.message || res.error) };
         made.push({ name: job.name, url: res && res.web_url });
       }
-      say(['Saved. ', ...made.flatMap((m, i) => [i ? ' and ' : '', m.url ? h('a', { href: m.url, target: '_blank', rel: 'noopener', text: m.name }) : m.name]), ' are in Iris.'], true);
+      say(['Saved. ', ...made.flatMap((m, k) => [k ? ' and ' : '', m.url ? h('a', { href: m.url, target: '_blank', rel: 'noopener', text: m.name }) : m.name]), ' are in Iris.'], true);
+      goBtn.textContent = 'Saved'; allowCopies = false;
       toast('Saved to Iris.');
     } catch (e) { say(irisError(e, wrote), false); goBtn.disabled = false; }
   });
@@ -536,7 +617,9 @@ function dealNow() {
   const before = S.week.days.map((s) => s.r + (s.second ? '2' : ''));
   const { week, why } = E.deal(S.week, S.style);
   S.pickDay = null;
-  commit(week, why);
+  const hadWork = S.rev > 0 && S.week.days.some((s) => s.r);
+  commit(week, why, { clearTicks: true });
+  if (hadWork) toast('Dealt a new week.', true);
   if (reduceMotion) return;
   const from = $('deal').getBoundingClientRect();
   document.querySelectorAll('#days .day').forEach((li, i) => {
@@ -573,7 +656,8 @@ document.addEventListener('pointermove', (e) => {
   }
   drag.ghost.style.left = e.clientX - drag.dx + 'px'; drag.ghost.style.top = e.clientY - drag.dy + 'px';
   const el = document.elementFromPoint(e.clientX, e.clientY);
-  const target = el && (el.closest('[data-drop-day]') || el.closest('#extras') || (drag.src.dataset.drag === 'day' && el.closest('.deck')));
+  const fromDeck = drag.src.dataset.drag === 'deck';
+  const target = el && (el.closest('[data-drop-day]') || (fromDeck && el.closest('#extras')) || (!fromDeck && el.closest('.deck')));
   if (target !== drag.over) { drag.over && drag.over.classList.remove('over'); target && target.classList.add('over'); drag.over = target || null; }
 });
 function endDrag(cancel) {
@@ -589,8 +673,8 @@ function endDrag(cancel) {
     const to = Number(d.over.dataset.dropDay);
     if (fromDay != null) commit(E.move(S.week, { day: fromDay }, { day: to }), '');
     else place(id, to);
-  } else if (d.over.id === 'extras' && fromDay == null) commit(E.move(S.week, { deck: id }, { extras: true }));
-  else if (fromDay != null) commit(E.move(S.week, { day: fromDay }, { deck: true }), '');
+  } else if (d.over.id === 'extras') { if (fromDay == null) commit(E.move(S.week, { deck: id }, { extras: true })); }
+  else if (fromDay != null) { commit(E.move(S.week, { day: fromDay }, { deck: true }), ''); toast(`${R[id].n} is back in the deck.`, true); }
 }
 document.addEventListener('pointerup', () => endDrag(false));
 document.addEventListener('pointercancel', () => endDrag(true));
@@ -599,9 +683,12 @@ document.addEventListener('click', (e) => { if (swallowClick) { e.stopPropagatio
 
 // ---------------------------------------------------------------- toast
 let toastTimer = 0;
-function toast(text) {
-  const t = $('toast'); t.textContent = text; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+function toast(text, canUndo) {
+  const t = $('toast');
+  (sheet.open ? sheet : document.body).append(t); // a modal dialog sits in the top layer; the toast has to be inside it to show
+  t.replaceChildren(text, canUndo && S.undo.length ? h('button', { type: 'button', text: 'Undo', onclick: () => { t.classList.remove('show'); undo(); } }) : '');
+  t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), canUndo ? 6000 : 2600);
 }
 
 // ---------------------------------------------------------------- wiring
@@ -611,8 +698,13 @@ $('pick-cancel').addEventListener('click', () => { S.pickDay = null; renderDeck(
 $('styles').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.style = b.dataset.s; persist(); renderWeek(); } });
 $('deal').addEventListener('click', dealNow);
 $('facts').addEventListener('click', openFacts);
-$('clear').addEventListener('click', () => commit({ ...emptyWeek(S.start), adds: S.week.adds, everyWeek: S.week.everyWeek }, 'Table cleared.'));
-function shiftWeek(by) { const d = dayDate(S.start, by * 7); loadWeek(d.toISOString().slice(0, 10)); shownCount = null; subscribe(); renderAll(); }
+$('clear').addEventListener('click', () => { if (!S.week.days.some((s) => s.r) && !S.week.extras.length) return; commit({ ...emptyWeek(S.start), adds: S.week.adds, everyWeek: S.week.everyWeek }, 'Table cleared.', { clearTicks: true }); toast('Table cleared.', true); });
+$('undo').addEventListener('click', undo);
+document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName) && !sheet.open) { e.preventDefault(); undo(); } });
+$('offer-yes').addEventListener('click', () => { const w = S.offer; S.offer = null; commit(w, 'This week came from the link.', { clearTicks: true }); toast('The linked week is on the table.', true); });
+$('offer-no').addEventListener('click', () => { S.offer = null; renderWeek(); });
+$('search').addEventListener('keydown', (e) => { if (e.key === 'Enter' && S.pickDay != null) { const first = E.recipeIds.find(matches); if (first) place(first, S.pickDay); } });
+function shiftWeek(by) { flush(); const d = dayDate(S.start, by * 7); S.offer = null; loadWeek(d.toISOString().slice(0, 10)); shownCount = null; subscribe(); renderAll(); }
 $('prev').addEventListener('click', () => shiftWeek(-1));
 $('next').addEventListener('click', () => shiftWeek(1));
 $('every-week').addEventListener('change', (e) => commit({ ...S.week, everyWeek: e.target.checked }));
@@ -628,13 +720,18 @@ $('add').addEventListener('focus', renderSuggest);
 $('save').addEventListener('click', openSave);
 $('copy').addEventListener('click', copyList);
 $('share').addEventListener('click', shareWeek);
-$('untick').addEventListener('click', () => { S.ticks.clear(); touched(); renderShop(); renderTabs(); });
+$('untick').addEventListener('click', () => { if (!S.ticks.size) return; commit(S.week, undefined, { clearTicks: true }); toast('Everything unticked.', true); });
 for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => setView(b.dataset.v));
 sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
 
 loadWeek(S.start);
+// A week that arrives in the link is offered, never applied by itself, and the link is then cleared so a reload cannot bring it back.
 const fromLink = E.decode(location.hash.slice(1), S.week);
-if (fromLink) { S.week = fromLink; S.why = 'This week came from the link.'; S.ticks = new Set(); S.rev = Date.now(); persist(); }
+if (fromLink) {
+  if (fromLink.days.map((d) => d.r).join() !== S.week.days.map((d) => d.r).join()) S.offer = fromLink;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* the link stays; the offer still shows once */ }
+}
+window.addEventListener('pagehide', flush);
 $('deck-sub').textContent = `${E.recipeIds.length} recipes · ${Object.keys(G).length} groceries · ${DECK.aisles.length} aisles`;
 renderAll();
 initCloud();

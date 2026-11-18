@@ -63,3 +63,16 @@ Report: `.campaign/council-report.md`.
 5. **Order:** engine first, tested against Iris's own saved aggregation for 18 to 24 May, before any UI.
 6. **Data hygiene:** personal annotations stripped from committed data; all Iris text escaped.
 7. **Added:** a week code in the link, a keyboard path for placing cards, one deal button with a small style switch.
+
+## Changes after the second Council review (18 November 2026)
+
+The finished build was tested hands-on by an independent reviewer, then put to the Council. What changed:
+
+1. **No lost work.** Writes to the shared copy are bound to the week they were made in. A week nobody touched is never pushed. A week link is offered, not applied, and is cleared once read. Each tick syncs on its own. Everything can be undone.
+2. **A truthful list.** Every-week items cover the same item for a meal instead of doubling it. Things bought whole are rounded up. No invented units. A tick lapses if the line it was for grows. "No meat" no longer covers the pizza with salami.
+3. **A dealer that shows its best tricks.** Each deal picks a story (leftover chain, batch night, or neither) and builds the week around it. Never three of one protein. Less of the same week twice.
+4. **Phone and keyboard.** Shared-ingredient tags show at every width. The list gets the whole phone screen. Focus stays where it was after a tick or a lock.
+5. **It learns.** Past weeks planned in the app count toward habits.
+6. **Save checks first.** If the week is already in Iris, it says so before writing a second copy.
+
+Not done, and why: recording which dinners were actually cooked (needs a habit the household does not have yet); merging near-duplicate groceries (a change to make in Iris, listed under "What the deck knows").

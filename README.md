@@ -2,7 +2,7 @@
 
 A weekly meal planner over the recipes and groceries held in Iris. The recipes are a deck of cards, the week is a table with seven places, and the shopping list rewrites itself, in the order you walk the store, every time a card moves.
 
-Built from `BRIEF.md`. The plan and the two Council reviews are in `docs/plan.md` and `.campaign/`.
+Built from `BRIEF.md`. The plan, with the changes each Council review led to, is in `docs/plan.md`. The latest Council report is `.campaign/council-report.md`.
 
 ## Use it
 
@@ -17,7 +17,10 @@ Built from `BRIEF.md`. The plan and the two Council reviews are in `docs/plan.md
 | Place cards | Drag onto a day, drag between days to swap, drag back to the deck. Or open a card and press a day (works by keyboard and touch). |
 | Deal me a week | Three deals: **The usual** leans on your saved plans, **Thrifty** deals the shortest shop, **Wildcard** deals dinners you have never planned. Lock a day to keep it. |
 | Watch the shop | Quantities add up across meals, per unit, grouped by aisle in your own store order. Tick things off. |
-| Finish the list | Every-week items from your Repeating weekly shopping list are merged in. Add anything else from the 214 groceries. Seasonings wait under "Check the cupboard". |
+| Finish the list | Every-week items from your Repeating weekly shopping list are merged in, and cover the same item for a meal rather than doubling it. Add anything else from your groceries. Seasonings wait under "Check the cupboard". |
+| Change your mind | Every change can be undone (the Undo button, the toast, or Ctrl+Z). Dealing again or clearing the table empties the trolley; undo brings it back. |
+| Shop from a phone | The list fills the screen, ticks are thumb-sized, the preferred product shows under each item, and things bought whole are rounded up (1 can, not ¾). |
+| Send a week | "Put this week in the link" gives a link that offers the week to whoever opens it. It is never applied without a yes. |
 | Save | Writes a meal plan and a checklist shopping list to Iris, in the same shape as your existing ones. |
 
 ## What it spots that a list does not
@@ -27,8 +30,9 @@ Built from `BRIEF.md`. The plan and the two Council reviews are in `docs/plan.md
 - **Batch cooking.** Lamb stew (x2 batches) offers a second night that adds nothing to the shop.
 - **Recipes inside recipes.** Sausages with coleslaw and potatoes contains every line of Coleslaw.
 - **Loose ends.** Half a can of chickpeas left over, and which card would use it up.
-- **House habits.** Nachos has been Wednesday in 3 of 3 saved weeks.
-- **Data to tidy.** 18 quantities in Iris cannot be right for their unit (250 cups of cauliflower). They are kept out of the totals and listed under "What the deck knows".
+- **Nothing wasted.** When two meals finish a can between them, it says so. Every deal tries to tell one such story: a leftover chain, a batch night, or a can used up.
+- **House habits.** Nachos has been Wednesday in 3 of 3 saved weeks. Weeks you plan here are added to that count, so The usual gets more like your household over time.
+- **Data to tidy.** 19 quantities in Iris cannot be right for their unit (250 cups of cauliflower), and a few groceries exist under two names (Onion and Onions). They are kept out of the totals and listed under "What the deck knows".
 
 ## How it is put together
 
@@ -40,8 +44,8 @@ scripts/build_data.py   raw Iris pulls -> data/deck.json
 scripts/build.py        src/ + data/deck.json -> dist/
 src/engine.js       shop totals, sharing, chains, loose ends, the dealer, Iris markdown. No DOM.
 src/ui.js           the page
-tests/engine.test.js    21 tests, including agreement with Iris's own aggregation
-tests/e2e/run.mjs       32 checks in a real browser: drag, deal, tick, phone, save, sync
+tests/engine.test.js    28 tests, including agreement with Iris's own aggregation
+tests/e2e/run.mjs       38 checks in a real browser: drag, deal, undo, tick, keyboard, phone, save, sync
 ```
 
 ```bash
@@ -71,6 +75,7 @@ Then run the data build and the page build. Update `data/source/` if the saved p
 ## Things to know
 
 - **Agreement with Iris.** On every line Iris's "Shopping list" aggregation adds up, this page gets the same number (tested on the 6 to 12 June plan). It also keeps what Iris drops: lines with no quantity, and amounts typed as text such as `1/2`.
-- **Save has not been run against the real Iris.** Iris diagrams cannot be deleted through the connector, so the first real write is yours to make. The write is tested against a stand-in, and its shape is copied from your existing diagrams.
+- **Sharing between devices.** In Claude, the week lives in the artifact's database, one document per week. The plan is written whole; each tick is merged on its own so two people shopping do not undo each other. Whoever you share the artifact with as a contributor can change the week.
+- **Save has not been run against the real Iris.** Iris diagrams cannot be deleted through the connector, so the first real write is yours to make. The write is tested against a stand-in, and its shape is copied from your existing diagrams. If a plan of the same name is already in the week's package, Save stops and asks before writing a second copy.
 - **Diner counts** scale the shop here, but are written to Iris only as a note; the token form Iris wants for a per-meal diner count was not confirmed.
 - **Committed data.** `data/deck.json` holds recipe text, grocery names and preferred products. Personal notes on the every-week list were removed. Check you are happy with that before making the repository public.

@@ -33,7 +33,7 @@ PROTEIN_WORDS = [
     ("sea", ["fish", "salmon", "prawn", "mussel", "tuna"]),
     ("chicken", ["chicken"]),
     ("lamb", ["lamb"]),
-    ("pork", ["pork", "sausage", "bacon", "ham", "chorizo", "burger patties"]),
+    ("pork", ["pork", "sausage", "bacon", "ham", "chorizo", "salami", "burger patties"]),
 ]
 
 
@@ -133,8 +133,10 @@ def looks_off(ing, groceries):
     Usually a count or a kilo typed against the grocery's default unit. Flagged, never corrected."""
     g = groceries[ing["g"]]
     q, unit = ing.get("q"), ing.get("u") or g["u"]
-    if q is None or g.get("s"):
+    if q is None:
         return False
+    if g.get("s"):
+        return unit == "cup" and q > 8
     return (unit == "g" and q < 20) or (unit == "cup" and q > 8) or (unit == "ml" and q < 10)
 
 

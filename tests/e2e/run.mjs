@@ -11,6 +11,7 @@ const failures = [];
 async function open(opts = {}, init) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...opts });
   const page = await ctx.newPage();
+  page.setDefaultTimeout(5000);
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && page.errors.push(m.text()));
@@ -149,6 +150,32 @@ const card = (name) => `#cards .pcard:has(.nm:text-is("${name}"))`;
       assert.ok((await page.textContent('#why')).length > 20);
     }
   });
+  await check('undo brings back a week that Deal replaced, and Deal clears the trolley', async () => {
+    const before = await names(page);
+    await page.check(`.item[data-g="${await page.getAttribute('.item:not(.done)', 'data-g')}"] input`);
+    await page.click('#deal'); await page.waitForTimeout(80);
+    assert.match(await page.textContent('#n-got'), /walk the store/);
+    await page.click('#toast button');
+    assert.deepEqual(await names(page), before);
+    assert.match(await page.textContent('#n-got'), /in the trolley/);
+    await page.keyboard.press('Control+z');
+    await page.click('#untick');
+  });
+  await check('keyboard: focus stays put after ticking and after locking', async () => {
+    await page.focus('.item:not(.done) input'); const g = await page.evaluate(() => document.activeElement.dataset.fk);
+    await page.keyboard.press('Space');
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.fk), g);
+    await page.keyboard.press('Space');
+    await page.focus('.day[data-i="2"] [data-fk="lock:2"]'); await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.fk), 'lock:2');
+    await page.keyboard.press('Enter');
+  });
+  await check('nachos night does not double the every-week nachos', async () => {
+    await page.check('#every-week');
+    await page.click(card('Easy nachos')); await page.click('#sheet .puton button:text-is("Fri")');
+    assert.equal((await page.textContent('.item:has(.nm:text-is("Chilli beans")) .qty')).trim(), '2 cans');
+    assert.match(await page.textContent('#notes'), /Already on your every-week list/);
+  });
   await check('aisles appear in store-walk order', async () => {
     await page.check('#every-week');
     const order = await page.$$eval('.aisle-h h3', (e) => e.map((x) => x.textContent));
@@ -162,7 +189,14 @@ const card = (name) => `#cards .pcard:has(.nm:text-is("${name}"))`;
     await page.waitForTimeout(300);
     if (await page.$('#sheet[open]')) await page.click('#sheet .close'); // headless Chromium refuses the clipboard, so the link is shown instead
     const other = await open({ hash });
+    assert.notDeepEqual(await names(other), await names(page), 'a linked week is offered, not applied');
+    await other.click('#offer-yes');
     assert.deepEqual(await names(other), await names(page));
+    const g = await other.getAttribute('.item', 'data-g');
+    await other.check(`.item[data-g="${g}"] input`);
+    await other.reload(); await other.waitForSelector('#days .day');
+    assert.equal(await other.evaluate(() => location.hash), '', 'the link is cleared once read');
+    assert.ok(await other.isChecked(`.item[data-g="${g}"] input`), 'a reload keeps the trolley');
     await other.context().close();
   });
   await check('save dialog without Claude offers the markdown instead', async () => {
@@ -215,16 +249,21 @@ const card = (name) => `#cards .pcard:has(.nm:text-is("${name}"))`;
 // ---------- inside Claude: a fake runtime stands in for the shared database and the Iris connector
 {
   const page = await open({}, () => {
-    const calls = [], docs = {}, subs = {};
+    const calls = [], docs = {}, subs = {}, writes = [];
+    window.__writes = writes;
+    const merge = (a, b) => { const out = { ...a }; for (const [k, v] of Object.entries(b)) out[k] = v && typeof v === 'object' && !Array.isArray(v) && a && typeof a[k] === 'object' && !Array.isArray(a[k]) ? merge(a[k], v) : v; return out; };
+    const emit = (path) => (subs[path] || []).forEach((fn) => fn({ exists: true, data: () => docs[path], metadata: { hasPendingWrites: false } }));
     window.__calls = calls; window.__docs = docs;
     const db = { doc: (path) => ({
-      set: async (body) => { docs[path] = body; (subs[path] || []).forEach((fn) => fn({ exists: true, data: () => body, metadata: { hasPendingWrites: false } })); },
+      set: async (body) => { writes.push({ op: 'set', path, body }); docs[path] = body; emit(path); },
+      update: async (body) => { writes.push({ op: 'update', path, body }); if (!docs[path]) throw { code: 'invalid_argument' }; docs[path] = merge(docs[path], body); emit(path); },
       onSnapshot: (next) => { (subs[path] = subs[path] || []).push(next); setTimeout(() => next({ exists: !!docs[path], data: () => docs[path], metadata: { hasPendingWrites: false } }), 10); return () => {}; },
     }) };
-    window.__remote = (path, body) => { docs[path] = body; (subs[path] || []).forEach((fn) => fn({ exists: true, data: () => body, metadata: { hasPendingWrites: false } })); };
+    window.__remote = (path, body) => { docs[path] = body; emit(path); };
     const mcp = { callTool: async (server, tool, input) => {
       calls.push({ server, tool, input });
       if (window.__fail) throw window.__fail;
+      if (tool === 'list_diagrams') return { payload: window.__existing ? [{ name: window.__existing }] : [] };
       if (tool === 'package_hierarchy') return { payload: input.set_id.startsWith('f2e0') ? [{ id: 'pkg-existing', name: window.__pkg || 'none' }] : [] };
       if (tool === 'create_package') return { payload: { id: 'pkg-new', name: input.name } };
       return { payload: { id: 'dia-' + calls.length, web_url: 'https://iris-uat.chrisbarlow.nz/views/dia-' + calls.length } };
@@ -237,10 +276,10 @@ const card = (name) => `#cards .pcard:has(.nm:text-is("${name}"))`;
     const keys = await page.evaluate(() => Object.keys(window.__docs));
     assert.equal(keys.length, 1); assert.match(keys[0], /^weeks\/\d{4}-\d\d-\d\d$/);
     const doc = await page.evaluate(() => Object.values(window.__docs)[0]);
-    assert.equal(doc.days.length, 7); assert.ok(Array.isArray(doc.ticks));
+    assert.equal(doc.days.length, 7); assert.deepEqual(doc.ticks, {});
   });
   await check('in Claude: a change made on another device arrives', async () => {
-    await page.evaluate(() => { const [path, body] = Object.entries(window.__docs)[0]; const first = body.days.find((d) => d.r).r; window.__remote(path, { ...body, days: body.days.map((d, i) => (i === 0 ? { ...d, r: first } : { ...d, r: null })), ticks: [], rev: Date.now() + 5000, tab: 'other' }); });
+    await page.evaluate(() => { const [path, body] = Object.entries(window.__docs)[0]; const first = body.days.find((d) => d.r).r; window.__remote(path, { ...body, days: body.days.map((d, i) => (i === 0 ? { ...d, r: first } : { ...d, r: null })), ticks: {}, rev: Date.now() + 5000, tab: 'other' }); });
     await page.waitForTimeout(100);
     assert.equal((await names(page)).filter(Boolean).length, 1);
   });
@@ -250,7 +289,7 @@ const card = (name) => `#cards .pcard:has(.nm:text-is("${name}"))`;
     await page.click('#save'); await page.click('#sheet .go');
     await page.waitForFunction(() => /Saved\./.test(document.getElementById('save-status')?.textContent || ''));
     const calls = await page.evaluate(() => window.__calls);
-    assert.deepEqual(calls.map((c) => c.tool), ['package_hierarchy', 'create_diagram', 'package_hierarchy', 'create_package', 'create_diagram']);
+    assert.deepEqual(calls.map((c) => c.tool), ['package_hierarchy', 'list_diagrams', 'package_hierarchy', 'create_diagram', 'create_package', 'create_diagram']);
     assert.ok(calls.every((c) => c.server === 'iris'));
     const [plan, list] = calls.filter((c) => c.tool === 'create_diagram').map((c) => c.input);
     assert.equal(plan.set_id, 'f2e064ad-9e08-4420-9c1f-3c3747b1c728'); assert.equal(plan.parent_package_id, 'pkg-existing');
@@ -261,6 +300,38 @@ const card = (name) => `#cards .pcard:has(.nm:text-is("${name}"))`;
     assert.equal(calls.find((c) => c.tool === 'create_package').input.name, pkg);
     assert.equal(await page.$$eval('#save-status a', (a) => a.length), 2);
     await page.click('#sheet .close');
+  });
+  await check('in Claude: saving a week that is already in Iris stops and asks first', async () => {
+    const before = (await page.evaluate(() => window.__calls)).length;
+    await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7)); const e = new Date(d); e.setDate(d.getDate() + 6); const M = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']; window.__existing = `From ${d.getDate()}${d.getMonth() === e.getMonth() ? '' : ' ' + M[d.getMonth()]} to ${e.getDate()} ${M[e.getMonth()]} ${e.getFullYear()}`; });
+    await page.click('#save'); await page.click('#sheet .go');
+    await page.waitForFunction(() => /already in Iris/.test(document.getElementById('save-status')?.textContent || ''));
+    const calls = (await page.evaluate(() => window.__calls)).slice(before);
+    assert.ok(!calls.some((c) => c.tool.startsWith('create_')), 'nothing written yet');
+    assert.equal((await page.textContent('#sheet .go')).trim(), 'Write new copies anyway');
+    await page.click('#sheet .close');
+  });
+  await check('in Claude: each tick is merged on its own, so two shoppers do not undo each other', async () => {
+    await page.waitForTimeout(700);
+    await page.evaluate(() => { window.__writes.length = 0; });
+    const g = await page.getAttribute('.item', 'data-g');
+    await page.check(`.item[data-g="${g}"] input`); await page.waitForTimeout(100);
+    const w = await page.evaluate(() => window.__writes);
+    assert.equal(w.length, 1); assert.equal(w[0].op, 'update'); assert.deepEqual(Object.keys(w[0].body.ticks), [g]);
+    // a partner ticks something else: both ticks stand
+    const other = await page.getAttribute('.item:not(.done)', 'data-g');
+    await page.evaluate(([o]) => { const [path, body] = Object.entries(window.__docs)[0]; const qty = document.querySelector(`.item[data-g="${o}"] .qty`).textContent; window.__remote(path, { ...body, ticks: { ...body.ticks, [o]: qty }, tab: 'partner' }); }, [other]);
+    await page.waitForTimeout(100);
+    assert.ok(await page.isChecked(`.item[data-g="${g}"] input`)); assert.ok(await page.isChecked(`.item[data-g="${other}"] input`));
+  });
+  await check('in Claude: changing week straight after an edit still saves the edit to its own week, and an untouched week is never pushed', async () => {
+    const start = await page.evaluate(() => Object.keys(window.__docs)[0]);
+    await page.click('.day[data-i="6"] .tool[aria-label^="Take"]');
+    await page.click('#next'); await page.waitForTimeout(900);
+    const docs = await page.evaluate(() => window.__docs);
+    assert.deepEqual(Object.keys(docs), [start], 'the empty next week was not written');
+    assert.equal(docs[start].days[6].r, null, 'the edit reached the week it was made in');
+    await page.click('#prev');
   });
   await check('in Claude: a failed save says what to do about it', async () => {
     await page.evaluate(() => { window.__fail = { code: 'server_not_connected', message: 'x' }; });
