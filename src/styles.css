@@ -266,3 +266,5 @@ body.dragging .deck { outline: 0; }
 .item.gone .nm { color: var(--muted); text-decoration: line-through dotted; }
 .detail .acts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; }
 .detail .acts .linkish { font-size: 13px; padding: 4px 0; }
+
+.alldone { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--green) 14%, var(--panel)); font-weight: 700; }

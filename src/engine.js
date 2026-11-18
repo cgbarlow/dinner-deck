@@ -459,8 +459,10 @@ export function makeEngine(deck, learned = []) {
     const dayLine = (s) => {
       if (!s.r) return '- _(nothing planned)_';
       if (s.second) return `- ${R[s.r].n} _(second night, already cooked)_`;
-      const diners = s.d && s.d !== R[s.r].sv ? ` _(for ${s.d})_` : '';
-      return `- {{diagram:${s.r}:name}}${diners}`;
+      // Iris scales a meal by its Diners value over the recipe's servings, and counts the meal once per token,
+      // so a scaled meal carries exactly one token: the diner count. (Checked against Iris, 18 November 2026.)
+      if (s.d && s.d !== R[s.r].sv) return `- ${R[s.r].n}, for {{diagram:${s.r}:attr:attributes/Diners/type=${s.d}}}`;
+      return `- {{diagram:${s.r}:name}}`;
     };
     // Same shape as the saved plans: the weekend, then the working week.
     const plan = ['# Week 1:'];

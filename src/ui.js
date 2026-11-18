@@ -380,14 +380,20 @@ function renderShop() {
   $('n-got').textContent = got && got + missing === buy.length ? (missing ? `Done. ${got} in the trolley, ${missing} not in the shop` : `Done. All ${got} in the trolley`) : got ? `${got} of ${buy.length} in the trolley` : 'in the order you walk the store';
   $('every-week').checked = S.week.everyWeek;
   const sections = [];
+  const phone = isPhone();
   DECK.aisles.forEach((name, a) => {
-    const lines = buy.filter((l) => l.aisle === a);
+    let lines = buy.filter((l) => l.aisle === a);
+    if (phone) lines = lines.filter((l) => !ticked(l));
     if (!lines.length) return;
     lines.sort((x, y) => S.ticks.has(x.g) - S.ticks.has(y.g) || x.name.localeCompare(y.name));
     const left = lines.filter((l) => !ticked(l) && !S.out.has(l.g)).length;
     sections.push(h('section', { class: 'aisle' }, h('div', { class: 'aisle-h' }, h('h3', { style: 'font:inherit', text: name }), h('span', { text: left ? `${left} to get` : 'done' })), h('ul', { class: 'items' }, lines.map(itemRow))));
   });
   if (!buy.length) sections.push(h('p', { class: 'empty', text: 'Nothing to buy yet. Put a dinner on the table and the list writes itself.' }));
+  // On a phone the list is what is left to find; what is already in the trolley waits at the end.
+  const inTrolley = buy.filter(ticked);
+  if (phone && inTrolley.length && inTrolley.length + buy.filter((l) => S.out.has(l.g) && !ticked(l)).length === buy.length) sections.unshift(h('p', { class: 'alldone', text: 'That is everything. Nothing left to find.' }));
+  if (phone && inTrolley.length) sections.push(h('details', { class: 'cupboard trolley', open: saved.trolleyOpen || null, ontoggle: (e) => { saved.trolleyOpen = e.target.open; disk.write(saved); } }, h('summary', { text: `In the trolley (${inTrolley.length})` }), h('ul', { class: 'items' }, inTrolley.map(itemRow))));
   const cup = SHOP.lines.filter((l) => l.tier === 'cupboard');
   if (cup.length) sections.push(h('details', { class: 'cupboard', open: saved.cupOpen || null, ontoggle: (e) => { saved.cupOpen = e.target.open; disk.write(saved); } }, h('summary', { text: `Check the cupboard (${cup.length}): ${cup.slice(0, 4).map((l) => l.name.toLowerCase()).join(', ')}${cup.length > 4 ? '…' : ''}` }), h('ul', { class: 'items' }, cup.map(itemRow))));
   for (const f of SHOP.fromFridge.filter((x) => !x.made && !x.from)) sections.push(h('p', { class: 'fine', style: 'margin:12px 0 0', text: `${R[f.r].n} also wants ${f.name.toLowerCase()}. Iris does not say which recipe makes it, so it is not on the list.` }));
@@ -524,7 +530,7 @@ function openFacts() {
       h('div', null, h('h3', { text: 'Worth tidying in Iris' }),
         h('p', null, `${odd.length} quantities cannot be right for their unit, usually a count typed against grams. They are left out of shop totals: `, odd.flatMap((o, k) => [k ? '; ' : '', link(o.id), ` (${o.text})`]), '.'),
         h('p', null, `${bare.length} recipes list ingredients with no amounts at all: `, list(bare), '. The shop shows those lines without a quantity.'),
-        (twins.length || sameName.length) ? h('p', { text: `Groceries that look like the same thing under two names: ${[...twins.map((t) => t.join(' and ')), ...sameName].join('; ')}. Each gets its own line on the list until they are merged in Iris.` }) : null,
+        DECK.merged.length ? h('p', { text: `Held twice in Iris under two names: ${DECK.merged.map(([a, b]) => `${a} and ${b}`).join('; ')}. They are one line on the list here. Merging them in Iris would make Iris's own totals agree.` }) : null,
         h('p', { class: 'fine', text: `${noMethod} recipes have no method written down. Iris's own shopping-list aggregation skips lines without a quantity and amounts typed as text like 1/2; this page keeps them.` }))),
   ]);
 }
@@ -760,6 +766,7 @@ if (fromLink) {
   try { history.replaceState(null, '', location.pathname + location.search); } catch { /* the link stays; the offer still shows once */ }
 }
 window.addEventListener('pagehide', flush);
+window.matchMedia('(max-width: 900px)').addEventListener('change', () => renderAll());
 $('deck-sub').textContent = `${E.recipeIds.length} recipes · ${Object.keys(G).length} groceries · ${DECK.aisles.length} aisles`;
 renderAll();
 initCloud();

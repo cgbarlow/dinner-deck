@@ -39,5 +39,22 @@
     "Pizza": {
       "protein": "pork"
     }
+  },
+  "sameAs": {
+    "note": "Groceries that exist twice in Iris under near-identical names. The first name is folded into the second here; merge them in Iris and remove the entry.",
+    "pairs": [
+      [
+        "Onions",
+        "Onion"
+      ],
+      [
+        "Apples",
+        "Apple"
+      ],
+      [
+        "Passata",
+        "Pasatta"
+      ]
+    ]
   }
 }

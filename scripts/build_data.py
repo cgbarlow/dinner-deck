@@ -186,6 +186,33 @@ def main():
             r["tg"] = tags
         recipes[d["id"]] = r
 
+    # Groceries held twice under near-identical names are folded together (curation.sameAs),
+    # and an unused twin with exactly the same name is dropped.
+    used = {i["g"] for r in recipes.values() for i in r["i"]} | {row[0] for row in load(ROOT / "data" / "source" / "every-week.json")["items"]}
+    first_by_name, alias = {}, {}
+    for gid in sorted(groceries, key=lambda g: (g not in used, g)):
+        n = groceries[gid]["n"]
+        if n in first_by_name:
+            alias[gid] = first_by_name[n]
+        else:
+            first_by_name[n] = gid
+    merged = []
+    for dup, keep in curation.get("sameAs", {}).get("pairs", []):
+        alias[first_by_name[dup]] = first_by_name[keep]
+        merged.append([dup, keep])
+    for dup, keep in alias.items():
+        if groceries[dup].get("p") and not groceries[keep].get("p"):
+            groceries[keep]["p"] = groceries[dup]["p"]
+    for r in recipes.values():
+        for ing in r["i"]:
+            if ing["g"] in alias:
+                dup = ing["g"]
+                if "u" not in ing and groceries[dup]["u"] != groceries[alias[dup]]["u"]:
+                    ing["u"] = groceries[dup]["u"]
+                ing["g"] = alias[dup]
+    for dup in alias:
+        del groceries[dup]
+
     # Leftover chains: only where a grocery is named "Leftover ..." and curation names its source recipe.
     name_to_id = {r["n"]: rid for rid, r in recipes.items()}
     gname_to_id = {}
@@ -207,6 +234,7 @@ def main():
             assert rid in recipes, rid
     every_week = []
     for gid, qty, unit, note in load(ROOT / "data" / "source" / "every-week.json")["items"]:
+        gid = alias.get(gid, gid)
         assert gid in groceries, gid
         item = {"g": gid}
         if qty:
@@ -224,6 +252,7 @@ def main():
         "recipes": recipes,
         "plans": [{"start": p["start"], "days": p["days"]} for p in plans],
         "everyWeek": every_week,
+        "merged": merged,
         "iris": curation["iris"],
     }
     out = ROOT / "data" / "deck.json"

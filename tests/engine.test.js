@@ -9,6 +9,8 @@ const id = (name) => { const hit = E.recipeIds.find((r) => E.R[r].n === name); a
 const gid = (name) => { const hit = Object.keys(E.G).find((g) => E.G[g].n === name); assert.ok(hit, name); return hit; };
 const weekOf = (names, start = '2026-11-21') => { const w = emptyWeek(start); names.forEach((n, i) => { if (n) w.days[i].r = id(n); }); w.everyWeek = false; return w; };
 const lineFor = (shop, name) => shop.lines.find((l) => l.name === name);
+// Iris still holds a few groceries twice; this app folds them together, so Iris's rows are folded the same way before comparing.
+const fold = (rows) => { const alias = Object.fromEntries(deck.merged); const out = new Map(); for (const [n, q, u] of rows) { const k = (alias[n] || n) + '|' + u; out.set(k, (out.get(k) || 0) + q); } return [...out].map(([k, q]) => [...k.split('|'), q]).map(([n, u, q]) => [n, q, u]); };
 
 // What Iris's own "Shopping list" aggregation returned for the saved plan of 6 to 12 June 2026,
 // called on 18 November 2026: aggregate(source_diagram_id=5cd03d1d…, profile_id=f0f2f8e8…).
@@ -24,7 +26,7 @@ test('agrees with Iris on every line Iris adds up', () => {
   const w = emptyWeek('2026-06-06'); w.everyWeek = false;
   deck.plans[2].days.forEach((r, i) => { w.days[i].r = r; });
   const shop = E.shop(w);
-  for (const [name, qty, unit] of IRIS_6_JUNE) {
+  for (const [name, qty, unit] of fold(IRIS_6_JUNE)) {
     const l = lineFor(shop, name);
     assert.ok(l, `${name} is on the list`);
     assert.equal(l.sums[unit], qty, `${name}: ${unit}`);
@@ -262,9 +264,26 @@ test('round trip: Iris adds up a plan this app wrote, and agrees with it line fo
   const out = E.toIris(w);
   for (const name of fx.week) assert.ok(out.planMarkdown.includes(`{{diagram:${id(name)}:name}}`));
   let agreed = 0;
-  for (const [name, qty, unit] of fx.rows) {
+  for (const [name, qty, unit] of fold(fx.rows)) {
     if (fx.leftOutOnPurpose[name]) { assert.equal(lineFor(shop, name)?.sums[unit], undefined, `${name} is kept out of the totals`); continue; }
     assert.equal(lineFor(shop, name).sums[unit], qty, `${name}: ${unit}`); agreed++;
   }
-  assert.equal(agreed, 24);
+  assert.equal(agreed, 23); // 24 rows in Iris; Onion and Onions are one line here
+});
+
+test('diner counts go to Iris as one token per meal, the form Iris scales by', () => {
+  const w = weekOf(['Spaghetti', 'Tacos', 'Pizza']); w.days[0].d = 8; w.days[1].d = 2;
+  const md = E.toIris(w).planMarkdown;
+  assert.ok(md.includes(`- Spaghetti, for {{diagram:${id('Spaghetti')}:attr:attributes/Diners/type=8}}`));
+  assert.equal(md.split(id('Spaghetti')).length - 1, 1, 'one token only, or Iris counts the meal twice');
+  assert.ok(md.includes(`- {{diagram:${id('Pizza')}:name}}`));
+  // Iris returned 1250 g pork mince (Spaghetti 1000, Tacos 250) for exactly this pair on 18 November 2026.
+  assert.equal(lineFor(E.shop({ ...w, days: w.days.map((s, i) => (i === 2 ? { ...s, r: null } : s)) }), 'Pork mince').sums.g, 1250);
+});
+
+test('groceries held twice in Iris are one line here', () => {
+  const shop = E.shop(weekOf(['Slow cooked pork shoulder', 'Chicken rice']));
+  assert.equal(lineFor(shop, 'Onion').sums.unit, 3);
+  assert.equal(lineFor(shop, 'Onions'), undefined);
+  assert.equal(Object.values(E.G).filter((g) => g.n === 'Pork shoulder').length, 1);
 });

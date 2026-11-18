@@ -256,6 +256,15 @@ const card = (name) => `#cards .pcard:has(.nm:text-is("${name}"))`;
     assert.match(await page.textContent('#tab-shop-n'), /\d+ to get/);
     assert.ok(await page.$$eval('.detail .product', (els) => els.some((e) => e.offsetParent !== null)));
   });
+  await check('phone: a ticked item leaves the list for the trolley section, and can come back', async () => {
+    const g = await page.getAttribute('.aisle .item', 'data-g');
+    await page.tap(`.aisle .item[data-g="${g}"] input`);
+    assert.equal(await page.$(`.aisle .item[data-g="${g}"]`), null);
+    assert.match(await page.textContent('.trolley summary'), /In the trolley \(\d+\)/);
+    await page.tap('.trolley summary');
+    await page.tap(`.trolley .item[data-g="${g}"] input`);
+    assert.ok(await page.$(`.aisle .item[data-g="${g}"]`));
+  });
   await check('no page errors (phone)', async () => assert.deepEqual(page.errors, []));
   await page.context().close();
 }
